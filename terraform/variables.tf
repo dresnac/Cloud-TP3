@@ -112,3 +112,34 @@ variable "alerta_email" {
   }
 }
 
+
+variable "cors_origenes" {
+  description = "Origenes del frontend que pueden llamar a la API y subir comprobantes a S3."
+  type        = list(string)
+  default     = ["http://localhost:5173"]
+
+  validation {
+    condition     = alltrue([for o in var.cors_origenes : can(regex("^https?://[^/*]+$", o))])
+    error_message = "Cada origen es esquema + host (+ puerto), sin comodines ni barra final. Ej: http://localhost:5173."
+  }
+}
+
+variable "cargar_datos_demo" {
+  description = "Carga comercios y productos de prueba en la migracion."
+  type        = bool
+  default     = true
+}
+
+variable "usuarios_demo" {
+  description = "Usuarios de prueba (email => grupo) que se crean ya confirmados y con contrasena permanente."
+  type        = map(string)
+  default = {
+    "cliente.demo@example.com"    = "cliente"
+    "repartidor.demo@example.com" = "repartidor"
+  }
+
+  validation {
+    condition     = alltrue([for g in values(var.usuarios_demo) : contains(["cliente", "repartidor"], g)])
+    error_message = "El grupo tiene que ser cliente o repartidor."
+  }
+}

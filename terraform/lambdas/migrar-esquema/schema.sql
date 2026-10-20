@@ -93,3 +93,5 @@ CREATE TABLE IF NOT EXISTS calificacion (
 );
 
 ALTER TABLE pedido ADD COLUMN IF NOT EXISTS comprobante text;
+
+CREATE INDEX IF NOT EXISTS pedido_repartidor_idx ON pedido (repartidor_id);

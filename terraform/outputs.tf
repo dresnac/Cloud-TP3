@@ -34,3 +34,14 @@ output "topic_alertas" {
   value = aws_sns_topic.alertas.arn
 }
 
+
+output "asignacion_timeout_segundos" {
+  description = "Segundos que tiene el repartidor para responder una oferta (el frontend lo usa para la cuenta regresiva)."
+  value       = var.asignacion_timeout_segundos
+}
+
+output "usuarios_demo" {
+  description = "Credenciales de los usuarios de prueba (terraform output -json usuarios_demo)."
+  sensitive   = true
+  value       = { for email, clave in random_password.usuario_demo : email => clave.result }
+}

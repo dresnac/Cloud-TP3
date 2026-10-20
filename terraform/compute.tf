@@ -57,13 +57,16 @@ resource "aws_lambda_layer_version" "rds_ca" {
 module "migrar_esquema" {
   source = "./modules/lambda_function"
 
-  nombre      = "${var.proyecto}-migrar-esquema"
-  source_dir  = "${path.module}/lambdas/migrar-esquema"
-  role_arn    = data.aws_iam_role.lab.arn
-  timeout     = 60
-  layers      = local.capas_db
-  environment = local.entorno_db
-  vpc_config  = local.vpc_lambda
+  nombre     = "${var.proyecto}-migrar-esquema"
+  source_dir = "${path.module}/lambdas/migrar-esquema"
+  role_arn   = data.aws_iam_role.lab.arn
+  timeout    = 60
+  layers     = local.capas_db
+  vpc_config = local.vpc_lambda
+
+  environment = merge(local.entorno_db, {
+    CARGAR_DATOS_DEMO = tostring(var.cargar_datos_demo)
+  })
 }
 
 module "api_comercios" {
@@ -276,6 +279,7 @@ resource "aws_lambda_invocation" "migrar_esquema" {
 
   triggers = {
     schema = filesha256("${path.module}/lambdas/migrar-esquema/schema.sql")
+    seed   = var.cargar_datos_demo ? filesha256("${path.module}/lambdas/migrar-esquema/seed.sql") : "sin-seed"
   }
 
   depends_on = [

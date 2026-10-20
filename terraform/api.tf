@@ -1,6 +1,15 @@
 resource "aws_apigatewayv2_api" "main" {
   name          = var.proyecto
   protocol_type = "HTTP"
+
+  # API Gateway responde el preflight OPTIONS solo, sin pasar por el
+  # authorizer ni por las Lambdas, y agrega los headers CORS a las respuestas.
+  cors_configuration {
+    allow_origins = var.cors_origenes
+    allow_methods = ["GET", "POST", "PUT"]
+    allow_headers = ["authorization", "content-type"]
+    max_age       = 3600
+  }
 }
 
 resource "aws_apigatewayv2_authorizer" "cognito" {

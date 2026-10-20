@@ -75,6 +75,19 @@ resource "aws_s3_bucket_lifecycle_configuration" "archivos" {
   depends_on = [aws_s3_bucket_versioning.archivos]
 }
 
+# El frontend sube el comprobante directo a S3 con el POST firmado que devuelve
+# url-comprobante. Solo POST: el bucket no se lee ni se lista desde el navegador.
+resource "aws_s3_bucket_cors_configuration" "archivos" {
+  bucket = aws_s3_bucket.archivos.id
+
+  cors_rule {
+    allowed_methods = ["POST"]
+    allowed_origins = var.cors_origenes
+    allowed_headers = ["content-type"]
+    max_age_seconds = 3600
+  }
+}
+
 data "aws_iam_policy_document" "archivos" {
   statement {
     sid       = "SoloTLS"
