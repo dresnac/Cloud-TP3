@@ -1,0 +1,578 @@
+/* Mobile-first: todo está pensado para un celular; desde 820 px se aprovecha el ancho. */
+:root {
+  --fondo: #f3f4f6;
+  --tarjeta: #ffffff;
+  --texto: #111827;
+  --muted: #6b7280;
+  --borde: #e5e7eb;
+  --acento: #ea580c;
+  --acento-texto: #ffffff;
+  --ok: #16a34a;
+  --error: #dc2626;
+  --info: #2563eb;
+  --radio: 14px;
+  color-scheme: light;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--texto);
+  background: var(--fondo);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fondo: #0f172a;
+    --tarjeta: #1e293b;
+    --texto: #f1f5f9;
+    --muted: #94a3b8;
+    --borde: #334155;
+    color-scheme: dark;
+  }
+}
+
+.tema-repartidor {
+  --acento: #16a34a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--fondo);
+  -webkit-tap-highlight-color: transparent;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0 0 0.5rem;
+  line-height: 1.2;
+}
+h2 {
+  font-size: 1.35rem;
+}
+h3 {
+  font-size: 1.05rem;
+}
+p {
+  margin: 0.4rem 0;
+}
+a {
+  color: inherit;
+}
+code,
+pre {
+  font-size: 0.85em;
+  background: color-mix(in srgb, var(--muted) 15%, transparent);
+  border-radius: 6px;
+  padding: 0.1em 0.35em;
+}
+pre {
+  padding: 0.75rem;
+  overflow-x: auto;
+}
+
+.muted {
+  color: var(--muted);
+}
+.chico {
+  font-size: 0.85rem;
+}
+.crece {
+  flex: 1;
+  min-width: 0;
+}
+.centrado {
+  text-align: center;
+}
+.emoji {
+  font-size: 1.6rem;
+}
+.emoji.grande {
+  font-size: 2.6rem;
+}
+
+/* ------------------------------------------------------------ controles */
+input,
+select,
+textarea {
+  width: 100%;
+  font: inherit;
+  padding: 0.7rem 0.8rem;
+  margin-top: 0.3rem;
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  background: var(--fondo);
+  color: var(--texto);
+}
+textarea {
+  min-height: 70px;
+  resize: vertical;
+}
+label {
+  display: block;
+  margin: 0.6rem 0;
+  font-weight: 500;
+}
+
+.btn {
+  font: inherit;
+  font-weight: 600;
+  padding: 0.7rem 1rem;
+  border-radius: 10px;
+  border: 1px solid var(--borde);
+  background: var(--tarjeta);
+  color: var(--texto);
+  cursor: pointer;
+  min-height: 44px;
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.btn.primario {
+  background: var(--acento);
+  border-color: var(--acento);
+  color: var(--acento-texto);
+}
+.btn.chico {
+  padding: 0.35rem 0.7rem;
+  min-height: 34px;
+  font-size: 0.85rem;
+}
+.btn.ancho {
+  width: 100%;
+  margin-top: 0.75rem;
+}
+.btn.redondo {
+  width: 40px;
+  height: 40px;
+  min-height: 40px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 1.2rem;
+}
+
+.segmentado {
+  display: flex;
+  gap: 0.4rem;
+  background: var(--fondo);
+  padding: 0.3rem;
+  border-radius: 12px;
+  margin: 0.5rem 0;
+}
+.segmentado button {
+  flex: 1;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border: 0;
+  border-radius: 9px;
+  padding: 0.6rem 0.4rem;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  min-height: 42px;
+}
+.segmentado button.activo {
+  background: var(--tarjeta);
+  color: var(--texto);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.15);
+}
+.segmentado button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.fila-botones {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+
+/* ------------------------------------------------------------ estructura */
+.shell {
+  min-height: 100dvh;
+  padding-bottom: 76px; /* nav inferior */
+}
+.barra {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.7rem 1rem;
+  padding-top: max(0.7rem, env(safe-area-inset-top));
+  background: var(--acento);
+  color: var(--acento-texto);
+}
+.barra-titulo {
+  font-weight: 700;
+  text-decoration: none;
+}
+.barra-usuario {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.barra .muted {
+  color: rgb(255 255 255 / 0.85);
+}
+.contenido {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.nav-inferior {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  display: flex;
+  background: var(--tarjeta);
+  border-top: 1px solid var(--borde);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.nav-inferior a {
+  flex: 1;
+  text-align: center;
+  padding: 0.9rem 0.5rem;
+  text-decoration: none;
+  font-weight: 600;
+  color: var(--muted);
+}
+.nav-inferior a.active {
+  color: var(--acento);
+}
+
+.shell.tema-repartidor {
+  padding-bottom: 1rem;
+}
+
+/* ------------------------------------------------------------ tarjetas y listas */
+.tarjeta {
+  background: var(--tarjeta);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  padding: 1rem;
+  margin-bottom: 0.9rem;
+}
+.tarjeta.destacada {
+  border: 2px solid var(--acento);
+}
+.tarjeta.oferta {
+  border: 2px solid var(--info);
+  animation: aparecer 0.3s ease-out;
+}
+.lista {
+  display: flex;
+  flex-direction: column;
+}
+.fila {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+.enlace {
+  text-decoration: none;
+  cursor: pointer;
+}
+.enlace:hover {
+  border-color: var(--acento);
+}
+.flecha {
+  color: var(--muted);
+}
+.encabezado {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+.encabezado h2,
+.encabezado h3 {
+  margin: 0;
+}
+.volver {
+  display: inline-block;
+  margin-bottom: 0.6rem;
+  color: var(--muted);
+  text-decoration: none;
+}
+.contador {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.contador span {
+  min-width: 1.2rem;
+  text-align: center;
+  font-weight: 700;
+}
+.fila-detalle {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.3rem 0;
+}
+.fila-detalle.total {
+  border-top: 1px solid var(--borde);
+  margin-top: 0.3rem;
+  padding-top: 0.5rem;
+  font-weight: 700;
+}
+.checkout {
+  position: sticky;
+  bottom: 70px;
+  box-shadow: 0 -4px 20px rgb(0 0 0 / 0.08);
+}
+
+/* ------------------------------------------------------------ estados y avisos */
+.estado {
+  display: inline-block;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--muted) 18%, transparent);
+  white-space: nowrap;
+}
+.estado-recibido,
+.estado-creado {
+  background: #fef3c7;
+  color: #92400e;
+}
+.estado-asignado,
+.estado-ocupado {
+  background: #dbeafe;
+  color: #1e40af;
+}
+.estado-entregado,
+.estado-disponible {
+  background: #dcfce7;
+  color: #166534;
+}
+.estado-cancelado {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.aviso {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: 10px;
+  margin: 0.5rem 0;
+  font-size: 0.92rem;
+}
+.aviso.error {
+  background: color-mix(in srgb, var(--error) 14%, transparent);
+  color: var(--error);
+}
+.aviso.ok {
+  background: color-mix(in srgb, var(--ok) 15%, transparent);
+  color: var(--ok);
+  cursor: pointer;
+}
+.aviso.info {
+  background: color-mix(in srgb, var(--info) 12%, transparent);
+  color: var(--info);
+}
+.error {
+  color: var(--error);
+}
+
+.cargando {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  color: var(--muted);
+  padding: 0.6rem;
+}
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--borde);
+  border-top-color: var(--acento);
+  border-radius: 50%;
+  animation: girar 0.8s linear infinite;
+}
+.cuenta {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--info);
+}
+.cuenta.urgente {
+  color: var(--error);
+}
+
+.linea-tiempo {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.linea-tiempo li {
+  padding: 0.35rem 0 0.35rem 1rem;
+  border-left: 2px solid var(--borde);
+}
+
+.estrellas {
+  display: flex;
+  gap: 0.3rem;
+  margin-bottom: 0.5rem;
+}
+.estrellas button {
+  font-size: 2rem;
+  background: none;
+  border: 0;
+  color: var(--borde);
+  cursor: pointer;
+  padding: 0 0.1rem;
+}
+.estrellas button.activa {
+  color: #f59e0b;
+}
+
+/* ------------------------------------------------------------ mapa */
+.mapa {
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--borde);
+  margin: 0.5rem 0;
+  position: relative;
+  z-index: 0;
+}
+.leyenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.leyenda i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 0.25rem;
+}
+
+/* ------------------------------------------------------------ inicio y login */
+.inicio {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 2.5rem 1rem;
+}
+.inicio h1 {
+  font-size: 2rem;
+}
+.inicio-apps {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+.tarjeta-app {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 1.4rem;
+  border-radius: var(--radio);
+  text-decoration: none;
+  color: #fff;
+}
+.tarjeta-app.cliente {
+  background: linear-gradient(135deg, #ea580c, #f97316);
+}
+.tarjeta-app.repartidor {
+  background: linear-gradient(135deg, #15803d, #22c55e);
+}
+.tarjeta-app strong {
+  font-size: 1.2rem;
+}
+
+.login {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+.login-form {
+  width: 100%;
+  max-width: 380px;
+  text-align: center;
+}
+.login-form label {
+  text-align: left;
+}
+.login-form .btn {
+  width: 100%;
+  margin: 0.5rem 0;
+}
+.login-form a {
+  display: inline-block;
+  margin-top: 0.5rem;
+}
+
+/* ------------------------------------------------------------ escritorio */
+.ocultar-movil {
+  display: none;
+}
+
+@media (min-width: 820px) {
+  .ocultar-movil {
+    display: inline;
+  }
+  .inicio-apps {
+    grid-template-columns: 1fr 1fr;
+  }
+  .grilla-repartidor {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    align-items: start;
+  }
+  .grilla-repartidor > .aviso {
+    grid-column: 1 / -1;
+  }
+  .nav-inferior {
+    position: static;
+    max-width: 1100px;
+    margin: 0 auto;
+    border: 0;
+    background: transparent;
+    justify-content: center;
+  }
+  .nav-inferior a {
+    flex: 0 0 auto;
+  }
+  .shell {
+    padding-bottom: 1rem;
+  }
+  .checkout {
+    position: static;
+    box-shadow: none;
+  }
+}
+
+@keyframes girar {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes aparecer {
+  from {
+    transform: translateY(-6px);
+    opacity: 0;
+  }
+}
