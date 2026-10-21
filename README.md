@@ -222,4 +222,4 @@ El `plan` consulta AWS (el rol `LabRole` y las AZ disponibles), así que necesit
 - `AWS_SECRET_ACCESS_KEY`
 - `AWS_SESSION_TOKEN`
 
-Las credenciales del Lab vencen al terminar la sesión. Antes de abrir o actualizar un PR hay que iniciar el Lab y actualizar los tres secrets. Si faltan, el pipeline falla con un mensaje que lo indica. Como no hay backend remoto, el plan se hace contra un state vacío y muestra todo lo que crearía un apply desde cero.
+Las credenciales del Lab vencen al terminar la sesión. Antes de abrir o actualizar un PR hay que iniciar el Lab y actualizar los tres secrets. Sirven las del Lab de cualquier integrante: el `plan` solo lee de AWS y no crea recursos. El `apply` no corre en el pipeline: se hace localmente, con las credenciales propias, siguiendo la guía de ejecución. Si faltan, el pipeline falla con un mensaje que lo indica. Como no hay backend remoto, el plan se hace contra un state vacío y muestra todo lo que crearía un apply desde cero.
