@@ -1,10 +1,5 @@
-resource "aws_s3_bucket" "archivos" {
-  bucket_prefix = "${var.proyecto}-archivos-"
-  force_destroy = true
-}
-
 resource "aws_s3_bucket_public_access_block" "archivos" {
-  bucket = aws_s3_bucket.archivos.id
+  bucket = local.bucket_archivos
 
   block_public_acls       = true
   block_public_policy     = true
@@ -13,7 +8,7 @@ resource "aws_s3_bucket_public_access_block" "archivos" {
 }
 
 resource "aws_s3_bucket_versioning" "archivos" {
-  bucket = aws_s3_bucket.archivos.id
+  bucket = local.bucket_archivos
 
   versioning_configuration {
     status = "Enabled"
@@ -21,7 +16,7 @@ resource "aws_s3_bucket_versioning" "archivos" {
 }
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "archivos" {
-  bucket = aws_s3_bucket.archivos.id
+  bucket = local.bucket_archivos
 
   rule {
     apply_server_side_encryption_by_default {
@@ -31,7 +26,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "archivos" {
 }
 
 resource "aws_s3_bucket_lifecycle_configuration" "archivos" {
-  bucket = aws_s3_bucket.archivos.id
+  bucket = local.bucket_archivos
 
   rule {
     id     = "historico"
@@ -78,7 +73,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "archivos" {
 # El frontend sube el comprobante directo a S3 con el POST firmado que devuelve
 # url-comprobante. Solo POST: el bucket no se lee ni se lista desde el navegador.
 resource "aws_s3_bucket_cors_configuration" "archivos" {
-  bucket = aws_s3_bucket.archivos.id
+  bucket = local.bucket_archivos
 
   cors_rule {
     allowed_methods = ["POST"]
@@ -93,7 +88,7 @@ data "aws_iam_policy_document" "archivos" {
     sid       = "SoloTLS"
     effect    = "Deny"
     actions   = ["s3:*"]
-    resources = [aws_s3_bucket.archivos.arn, "${aws_s3_bucket.archivos.arn}/*"]
+    resources = [local.bucket_archivos_arn, "${local.bucket_archivos_arn}/*"]
 
     principals {
       type        = "*"
@@ -109,7 +104,7 @@ data "aws_iam_policy_document" "archivos" {
 }
 
 resource "aws_s3_bucket_policy" "archivos" {
-  bucket = aws_s3_bucket.archivos.id
+  bucket = local.bucket_archivos
   policy = data.aws_iam_policy_document.archivos.json
 
   depends_on = [aws_s3_bucket_public_access_block.archivos]

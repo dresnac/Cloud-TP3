@@ -10,6 +10,17 @@ resource "aws_cloudwatch_log_group" "this" {
   retention_in_days = 7
 }
 
+# Lambda entrega los logs unos segundos despues de cada invocacion y, si el log
+# group ya no existe, lo vuelve a crear fuera de Terraform y sin retencion. Eso
+# rompia el apply siguiente a un destroy. Al destruir, se espera antes de borrar
+# el log group para que lleguen los ultimos logs (recursos-base se invoca en el
+# mismo destroy).
+resource "time_sleep" "logs" {
+  destroy_duration = "60s"
+
+  depends_on = [aws_cloudwatch_log_group.this]
+}
+
 resource "aws_lambda_function" "this" {
   function_name    = var.nombre
   role             = var.role_arn
@@ -35,5 +46,5 @@ resource "aws_lambda_function" "this" {
     }
   }
 
-  depends_on = [aws_cloudwatch_log_group.this]
+  depends_on = [time_sleep.logs]
 }

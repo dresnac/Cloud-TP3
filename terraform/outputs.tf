@@ -3,11 +3,11 @@ output "proyecto" {
 }
 
 output "stream_posiciones" {
-  value = aws_kinesis_stream.posiciones.name
+  value = local.stream_posiciones
 }
 
 output "bucket_archivos" {
-  value = aws_s3_bucket.archivos.id
+  value = local.bucket_archivos
 }
 
 output "migracion" {

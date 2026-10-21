@@ -105,8 +105,8 @@ data "aws_iam_policy_document" "vpce_s3" {
   statement {
     actions = ["s3:GetObject", "s3:ListBucket"]
     resources = [
-      aws_s3_bucket.archivos.arn,
-      "${aws_s3_bucket.archivos.arn}/comprobantes/*",
+      local.bucket_archivos_arn,
+      "${local.bucket_archivos_arn}/comprobantes/*",
     ]
 
     principals {

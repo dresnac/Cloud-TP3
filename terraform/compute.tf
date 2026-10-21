@@ -137,7 +137,7 @@ module "registrar_posicion" {
   layers     = [local.capa_api]
 
   environment = {
-    STREAM_NAME = aws_kinesis_stream.posiciones.name
+    STREAM_NAME = local.stream_posiciones
   }
 }
 
@@ -162,7 +162,7 @@ module "archivar_posiciones" {
   timeout    = 30
 
   environment = {
-    BUCKET = aws_s3_bucket.archivos.bucket
+    BUCKET = local.bucket_archivos
   }
 }
 
@@ -233,7 +233,7 @@ module "url_comprobante" {
   layers     = [local.capa_api]
 
   environment = {
-    BUCKET = aws_s3_bucket.archivos.bucket
+    BUCKET = local.bucket_archivos
   }
 }
 
@@ -248,7 +248,7 @@ module "marcar_entregado" {
   vpc_config = local.vpc_lambda
 
   environment = merge(local.entorno_db, {
-    BUCKET = aws_s3_bucket.archivos.bucket
+    BUCKET = local.bucket_archivos
   })
 }
 
