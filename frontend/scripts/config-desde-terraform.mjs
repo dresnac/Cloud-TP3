@@ -7,14 +7,14 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 const aqui = path.dirname(fileURLToPath(import.meta.url));
-const tfDir = path.resolve(aqui, "../../terraform");
+const tfDir = path.resolve(aqui, "../../terraform/organization");
 const destino = path.resolve(aqui, "../.env.local");
 
 let out;
 try {
   out = JSON.parse(execFileSync("terraform", [`-chdir=${tfDir}`, "output", "-json"], { encoding: "utf8" }));
 } catch (e) {
-  console.error("No se pudieron leer los outputs de Terraform. ¿Corriste terraform apply en terraform/?");
+  console.error("No se pudieron leer los outputs de Terraform. ¿Corriste terraform apply en terraform/organization?");
   process.exit(1);
 }
 

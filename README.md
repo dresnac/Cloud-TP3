@@ -2,15 +2,15 @@
 
 **82.08 Cloud Computing**
 
-Todo el código Terraform está en [`terraform/`](terraform/). Hay un archivo por capa de la arquitectura: `network`, `database`, `auth`, `api`, `compute`, `orchestration`, `messaging`, `streaming`, `storage`, `monitoring` e `iam`. Las variables, los outputs, los locals, los providers y las versiones están en archivos separados.
+El módulo raíz de Terraform está en [`terraform/organization/`](terraform/organization/) y el módulo propio en [`terraform/modules/`](terraform/modules/). Hay un archivo por capa de la arquitectura: `network`, `database`, `auth`, `api`, `compute`, `orchestration`, `messaging`, `streaming`, `storage`, `monitoring` e `iam`. Las variables, los outputs, los locals, los providers y las versiones están en archivos separados.
 
 ---
 
 ## 1. Módulos
 
-### Módulo propio: `modules/lambda_function`
+### Módulo propio: `terraform/modules/lambda_function`
 
-Encapsula todo lo que necesita una Lambda del proyecto. Se usa **19 veces**: 18 en [`compute.tf`](terraform/compute.tf) y 1 en [`recursos-base.tf`](terraform/recursos-base.tf). Así, cada función queda declarada en unas pocas líneas.
+Encapsula todo lo que necesita una Lambda del proyecto. Se usa **19 veces**: 18 en [`compute.tf`](terraform/organization/compute.tf) y 1 en [`recursos-base.tf`](terraform/organization/recursos-base.tf). Así, cada función queda declarada en unas pocas líneas.
 
 | Recurso que crea | Para qué |
 |---|---|
@@ -33,7 +33,7 @@ Outputs: `function_name`, `arn` e `invoke_arn`. Los consumen API Gateway, Step F
 
 ### Módulo externo: `terraform-aws-modules/vpc/aws` (`~> 6.7`)
 
-Está en [`network.tf`](terraform/network.tf) y crea la VPC con 2 AZ y dos niveles de subredes privadas. Las subredes `app` alojan las Lambdas que acceden a RDS y las subredes `datos` alojan RDS, con su propio subnet group y una NACL dedicada. Las reglas de la NACL se generan con una expresión `for` sobre las subredes `app`: solo permiten tráfico entrante al 5432 y la respuesta por puertos efímeros. No hay Internet Gateway ni NAT (`create_igw = false`, `enable_nat_gateway = false`). Las Lambdas de la VPC llegan a Secrets Manager y a S3 por VPC endpoints.
+Está en [`network.tf`](terraform/organization/network.tf) y crea la VPC con 2 AZ y dos niveles de subredes privadas. Las subredes `app` alojan las Lambdas que acceden a RDS y las subredes `datos` alojan RDS, con su propio subnet group y una NACL dedicada. Las reglas de la NACL se generan con una expresión `for` sobre las subredes `app`: solo permiten tráfico entrante al 5432 y la respuesta por puertos efímeros. No hay Internet Gateway ni NAT (`create_igw = false`, `enable_nat_gateway = false`). Las Lambdas de la VPC llegan a Secrets Manager y a S3 por VPC endpoints.
 
 ---
 
@@ -75,7 +75,7 @@ Está en [`network.tf`](terraform/network.tf) y crea la VPC con 2 AZ y dos nivel
 
 ### `count`
 
-[`monitoring.tf`](terraform/monitoring.tf): la suscripción por email al topic de alertas se crea solo si `alerta_email` no está vacía (`count = var.alerta_email == "" ? 0 : 1`).
+[`monitoring.tf`](terraform/organization/monitoring.tf): la suscripción por email al topic de alertas se crea solo si `alerta_email` no está vacía (`count = var.alerta_email == "" ? 0 : 1`).
 
 ### `depends_on`
 
@@ -108,7 +108,7 @@ El Learner Lab tiene un SCP (Service Control Policy de AWS Academy) que niega do
 | `aws_s3_bucket` | `s3:GetBucketObjectLockConfiguration`, en cada lectura del bucket. Después del primer apply, todo `plan` falla |
 | `aws_kinesis_stream` | `kinesis:IncreaseStreamRetentionPeriod`, al crear el stream. El stream queda a medias y sin cifrado |
 
-Por eso el bucket `archivos` y el stream `posiciones` no se declaran como recursos de Terraform. Los crea una Lambda, [`lambdas/recursos-base/handler.py`](terraform/lambdas/recursos-base/handler.py), que solo hace las llamadas permitidas. Terraform la invoca como un *custom resource*:
+Por eso el bucket `archivos` y el stream `posiciones` no se declaran como recursos de Terraform. Los crea una Lambda, [`lambdas/recursos-base/handler.py`](terraform/organization/lambdas/recursos-base/handler.py), que solo hace las llamadas permitidas. Terraform la invoca como un *custom resource*:
 
 ```hcl
 resource "aws_lambda_invocation" "recursos_base" {
@@ -124,7 +124,7 @@ resource "aws_lambda_invocation" "recursos_base" {
 | **update** | Si cambió el nombre del bucket o del stream, borra el anterior y crea el nuevo |
 | **delete** | Vacía el bucket (todas las versiones y delete markers) y lo borra; borra el stream |
 
-La Lambda devuelve los nombres y ARNs. [`recursos-base.tf`](terraform/recursos-base.tf) los expone como `local.bucket_archivos`, `local.bucket_archivos_arn`, `local.stream_posiciones` y `local.stream_posiciones_arn`. El resto del código usa esos locals, y la configuración del bucket (versionado, cifrado, lifecycle, CORS, policy y bloqueo de acceso público) sigue en Terraform, en [`storage.tf`](terraform/storage.tf). El nombre del bucket es único porque lleva un sufijo `random_id`.
+La Lambda devuelve los nombres y ARNs. [`recursos-base.tf`](terraform/organization/recursos-base.tf) los expone como `local.bucket_archivos`, `local.bucket_archivos_arn`, `local.stream_posiciones` y `local.stream_posiciones_arn`. El resto del código usa esos locals, y la configuración del bucket (versionado, cifrado, lifecycle, CORS, policy y bloqueo de acceso público) sigue en Terraform, en [`storage.tf`](terraform/organization/storage.tf). El nombre del bucket es único porque lleva un sufijo `random_id`.
 
 **`time_sleep` en el módulo de Lambda.** Lambda escribe los logs unos segundos después de cada invocación. Si el log group ya se borró, lo vuelve a crear fuera de Terraform. Como `recursos-base` se invoca durante el `destroy`, eso rompía el siguiente `apply`. El `time_sleep` hace que el log group se borre 60 s después que la función.
 
@@ -153,13 +153,13 @@ La Lambda devuelve los nombres y ARNs. [`recursos-base.tf`](terraform/recursos-b
 2. **Variables (opcional).** Todas tienen default. Para cambiar alguna:
 
    ```bash
-   cp terraform/terraform.tfvars.example terraform/terraform.tfvars
+   cp terraform/organization/terraform.tfvars.example terraform/organization/terraform.tfvars
    ```
 
 3. **Init, validate y plan.**
 
    ```bash
-   cd terraform
+   cd terraform/organization
    terraform init
    terraform validate
    terraform plan -out=tfplan
@@ -197,7 +197,7 @@ La Lambda devuelve los nombres y ARNs. [`recursos-base.tf`](terraform/recursos-b
 8. **Destruir.**
 
    ```bash
-   cd terraform
+   cd terraform/organization
    terraform destroy
    ```
 

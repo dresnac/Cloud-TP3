@@ -5,7 +5,7 @@ resource "random_id" "bucket" {
 data "aws_default_tags" "actual" {}
 
 module "recursos_base" {
-  source = "./modules/lambda_function"
+  source = "../modules/lambda_function"
 
   nombre     = "${var.proyecto}-recursos-base"
   source_dir = "${path.module}/lambdas/recursos-base"

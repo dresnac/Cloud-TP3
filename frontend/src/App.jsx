@@ -46,7 +46,7 @@ function SinConfiguracion() {
       </p>
       <pre>cd frontend{"\n"}npm run config{"\n"}npm run dev</pre>
       <p className="muted">
-        Los usuarios de demo y sus contraseñas: <code>terraform -chdir=terraform output -json usuarios_demo</code>.
+        Los usuarios de demo y sus contraseñas: <code>terraform -chdir=terraform/organization output -json usuarios_demo</code>.
       </p>
     </main>
   );

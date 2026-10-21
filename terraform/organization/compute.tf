@@ -55,7 +55,7 @@ resource "aws_lambda_layer_version" "rds_ca" {
 }
 
 module "migrar_esquema" {
-  source = "./modules/lambda_function"
+  source = "../modules/lambda_function"
 
   nombre     = "${var.proyecto}-migrar-esquema"
   source_dir = "${path.module}/lambdas/migrar-esquema"
@@ -70,7 +70,7 @@ module "migrar_esquema" {
 }
 
 module "api_comercios" {
-  source = "./modules/lambda_function"
+  source = "../modules/lambda_function"
 
   nombre      = "${var.proyecto}-api-comercios"
   source_dir  = "${path.module}/lambdas/api-comercios"
@@ -81,7 +81,7 @@ module "api_comercios" {
 }
 
 module "recibir_pedido" {
-  source = "./modules/lambda_function"
+  source = "../modules/lambda_function"
 
   nombre     = "${var.proyecto}-recibir-pedido"
   source_dir = "${path.module}/lambdas/recibir-pedido"
@@ -94,7 +94,7 @@ module "recibir_pedido" {
 }
 
 module "crear_pedido" {
-  source = "./modules/lambda_function"
+  source = "../modules/lambda_function"
 
   nombre      = "${var.proyecto}-crear-pedido"
   source_dir  = "${path.module}/lambdas/crear-pedido"
@@ -106,7 +106,7 @@ module "crear_pedido" {
 }
 
 module "iniciar_proceso" {
-  source = "./modules/lambda_function"
+  source = "../modules/lambda_function"
 
   nombre     = "${var.proyecto}-iniciar-proceso"
   source_dir = "${path.module}/lambdas/iniciar-proceso"
@@ -118,7 +118,7 @@ module "iniciar_proceso" {
 }
 
 module "api_repartidores" {
-  source = "./modules/lambda_function"
+  source = "../modules/lambda_function"
 
   nombre      = "${var.proyecto}-api-repartidores"
   source_dir  = "${path.module}/lambdas/api-repartidores"
@@ -129,7 +129,7 @@ module "api_repartidores" {
 }
 
 module "registrar_posicion" {
-  source = "./modules/lambda_function"
+  source = "../modules/lambda_function"
 
   nombre     = "${var.proyecto}-registrar-posicion"
   source_dir = "${path.module}/lambdas/registrar-posicion"
@@ -142,7 +142,7 @@ module "registrar_posicion" {
 }
 
 module "actualizar_posicion" {
-  source = "./modules/lambda_function"
+  source = "../modules/lambda_function"
 
   nombre      = "${var.proyecto}-actualizar-posicion"
   source_dir  = "${path.module}/lambdas/actualizar-posicion"
@@ -154,7 +154,7 @@ module "actualizar_posicion" {
 }
 
 module "archivar_posiciones" {
-  source = "./modules/lambda_function"
+  source = "../modules/lambda_function"
 
   nombre     = "${var.proyecto}-archivar-posiciones"
   source_dir = "${path.module}/lambdas/archivar-posiciones"
@@ -167,7 +167,7 @@ module "archivar_posiciones" {
 }
 
 module "buscar_repartidor" {
-  source = "./modules/lambda_function"
+  source = "../modules/lambda_function"
 
   nombre     = "${var.proyecto}-buscar-repartidor"
   source_dir = "${path.module}/lambdas/buscar-repartidor"
@@ -183,7 +183,7 @@ module "buscar_repartidor" {
 }
 
 module "ofrecer_pedido" {
-  source = "./modules/lambda_function"
+  source = "../modules/lambda_function"
 
   nombre      = "${var.proyecto}-ofrecer-pedido"
   source_dir  = "${path.module}/lambdas/ofrecer-pedido"
@@ -194,7 +194,7 @@ module "ofrecer_pedido" {
 }
 
 module "cerrar_asignacion" {
-  source = "./modules/lambda_function"
+  source = "../modules/lambda_function"
 
   nombre      = "${var.proyecto}-cerrar-asignacion"
   source_dir  = "${path.module}/lambdas/cerrar-asignacion"
@@ -205,7 +205,7 @@ module "cerrar_asignacion" {
 }
 
 module "responder_asignacion" {
-  source = "./modules/lambda_function"
+  source = "../modules/lambda_function"
 
   nombre     = "${var.proyecto}-responder-asignacion"
   source_dir = "${path.module}/lambdas/responder-asignacion"
@@ -214,7 +214,7 @@ module "responder_asignacion" {
 }
 
 module "api_pedidos" {
-  source = "./modules/lambda_function"
+  source = "../modules/lambda_function"
 
   nombre      = "${var.proyecto}-api-pedidos"
   source_dir  = "${path.module}/lambdas/api-pedidos"
@@ -225,7 +225,7 @@ module "api_pedidos" {
 }
 
 module "url_comprobante" {
-  source = "./modules/lambda_function"
+  source = "../modules/lambda_function"
 
   nombre     = "${var.proyecto}-url-comprobante"
   source_dir = "${path.module}/lambdas/url-comprobante"
@@ -238,7 +238,7 @@ module "url_comprobante" {
 }
 
 module "marcar_entregado" {
-  source = "./modules/lambda_function"
+  source = "../modules/lambda_function"
 
   nombre     = "${var.proyecto}-marcar-entregado"
   source_dir = "${path.module}/lambdas/marcar-entregado"
@@ -253,7 +253,7 @@ module "marcar_entregado" {
 }
 
 module "recibir_entrega" {
-  source = "./modules/lambda_function"
+  source = "../modules/lambda_function"
 
   nombre     = "${var.proyecto}-recibir-entrega"
   source_dir = "${path.module}/lambdas/recibir-entrega"
@@ -266,7 +266,7 @@ module "recibir_entrega" {
 }
 
 module "notificar" {
-  source = "./modules/lambda_function"
+  source = "../modules/lambda_function"
 
   nombre     = "${var.proyecto}-notificar"
   source_dir = "${path.module}/lambdas/notificar"

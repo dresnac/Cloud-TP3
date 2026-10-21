@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: terraform
+        working-directory: terraform/organization
     # Credenciales del Learner Lab (AWS Details > AWS CLI). Vencen con la sesion
     # del Lab: hay que actualizar los tres secrets antes de abrir o actualizar el PR.
     env:
@@ -28,7 +28,7 @@ jobs:
           terraform_wrapper: false
 
       - name: Formato
-        run: terraform fmt -check -recursive
+        run: terraform fmt -check -recursive ..
 
       - name: Init
         run: terraform init -backend=false -input=false

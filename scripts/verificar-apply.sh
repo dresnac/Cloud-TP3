@@ -7,7 +7,7 @@
 #   ./scripts/verificar-apply.sh
 set -uo pipefail
 
-TF="terraform -chdir=terraform"
+TF="terraform -chdir=terraform/organization"
 REGION="${AWS_REGION:-us-east-1}"
 export AWS_DEFAULT_REGION="$REGION"
 
