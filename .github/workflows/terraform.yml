@@ -6,24 +6,52 @@ on:
   pull_request:
 
 jobs:
-  validate:
+  terraform:
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: terraform
+    # Credenciales del Learner Lab (AWS Details > AWS CLI). Vencen con la sesion
+    # del Lab: hay que actualizar los tres secrets antes de abrir o actualizar el PR.
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+      AWS_REGION: us-east-1
+      TF_IN_AUTOMATION: "true"
     steps:
       - uses: actions/checkout@v7
 
       - uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: 1.16.4
+          terraform_wrapper: false
 
       - name: Formato
         run: terraform fmt -check -recursive
 
       - name: Init
-        run: terraform init -backend=false
+        run: terraform init -backend=false -input=false
 
       - name: Validate
         run: terraform validate
-        
+
+      # El plan consulta AWS (LabRole, zonas de disponibilidad), asi que necesita
+      # credenciales. Sin backend remoto planifica contra un state vacio: muestra
+      # todo lo que crearia un apply desde cero.
+      - name: Plan
+        if: env.AWS_ACCESS_KEY_ID != ''
+        run: |
+          terraform plan -input=false -no-color -out=tfplan
+          {
+            echo '## terraform plan'
+            echo '```'
+            terraform show -no-color tfplan | tail -n 400
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Plan sin credenciales
+        if: env.AWS_ACCESS_KEY_ID == ''
+        run: |
+          echo "::error::Faltan los secrets AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY y AWS_SESSION_TOKEN: no se puede correr terraform plan."
+          exit 1

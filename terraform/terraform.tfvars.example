@@ -1,0 +1,38 @@
+# Copiar a terraform.tfvars y ajustar. Todas las variables tienen default:
+# este archivo es opcional y solo hace falta para cambiar algun valor.
+
+region   = "us-east-1" # us-east-1 o us-west-2
+proyecto = "delivery"  # prefijo de todos los recursos
+
+# Red: /16, las subredes /24 se calculan a partir de este bloque
+vpc_cidr        = "10.0.0.0/16"
+endpoint_una_az = true # endpoint de Secrets Manager en una sola AZ (mas barato)
+
+# Base de datos
+db_instance_class = "db.t3.micro"
+cargar_datos_demo = true # comercios y productos de prueba
+
+# Posiciones de la flota
+archivo_ventana_segundos = 60 # 1 a 300
+
+historico_lifecycle = {
+  dias_standard_ia = 30
+  dias_glacier_ir  = 90
+  dias_expiracion  = 180
+}
+
+# Asignacion de repartidores
+asignacion_max_intentos     = 3
+asignacion_radio_metros     = 5000
+asignacion_timeout_segundos = 60
+
+# Alarmas: vacio = sin suscripcion por email
+alerta_email = ""
+
+# Frontend
+cors_origenes = ["http://localhost:5173"]
+
+usuarios_demo = {
+  "cliente.demo@example.com"    = "cliente"
+  "repartidor.demo@example.com" = "repartidor"
+}
