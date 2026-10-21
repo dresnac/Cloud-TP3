@@ -3,22 +3,34 @@ import { configCompleta } from "./config";
 import AppShell from "./components/AppShell";
 import ClienteApp from "./cliente/ClienteApp";
 import RepartidorApp from "./repartidor/RepartidorApp";
+import { Bolsa, Chevron, Moto } from "./components/iconos";
 
 function Inicio() {
   return (
     <main className="inicio">
+      <p className="eyebrow">TP3 · Cloud Computing</p>
       <h1>Delivery</h1>
-      <p className="muted">Apps de demo sobre la infraestructura del TP3.</p>
+      <p className="muted">Elegí con qué app entrar. Podés abrir las dos a la vez, en ventanas distintas.</p>
       <div className="inicio-apps">
-        <Link to="/cliente" className="tarjeta-app cliente">
-          <span className="emoji">🛍️</span>
-          <strong>App del cliente</strong>
-          <span>Pedí, seguí tu envío y calificá</span>
+        <Link to="/cliente" className="tarjeta-app tema-cliente">
+          <span className="tarjeta-app-icono">
+            <Bolsa tam={26} />
+          </span>
+          <strong>Cliente</strong>
+          <span>Pedí en los comercios de la zona y seguí el envío en el mapa.</span>
+          <span className="tarjeta-app-ir">
+            Entrar <Chevron tam={16} />
+          </span>
         </Link>
-        <Link to="/repartidor" className="tarjeta-app repartidor">
-          <span className="emoji">🛵</span>
-          <strong>App del repartidor</strong>
-          <span>Recibí ofertas, retirá y entregá</span>
+        <Link to="/repartidor" className="tarjeta-app tema-repartidor">
+          <span className="tarjeta-app-icono">
+            <Moto tam={26} />
+          </span>
+          <strong>Repartidor</strong>
+          <span>Recibí ofertas cerca tuyo, retirá el pedido y entregalo con foto.</span>
+          <span className="tarjeta-app-ir">
+            Entrar <Chevron tam={16} />
+          </span>
         </Link>
       </div>
     </main>
@@ -56,7 +68,7 @@ export default function App() {
       <Route
         path="/repartidor/*"
         element={
-          <AppShell app="repartidor" titulo="Delivery · Repartidor" grupo="repartidor">
+          <AppShell app="repartidor" titulo="Delivery Repartidor" grupo="repartidor">
             <RepartidorApp />
           </AppShell>
         }

@@ -101,6 +101,17 @@ variable "asignacion_timeout_segundos" {
   default = 60
 }
 
+variable "asignacion_espera_segundos" {
+  description = "Segundos que se sigue buscando repartidor cuando no hay ninguno cerca, antes de cancelar el pedido."
+  type        = number
+  default     = 300
+
+  validation {
+    condition     = var.asignacion_espera_segundos >= 0 && var.asignacion_espera_segundos <= 1800
+    error_message = "asignacion_espera_segundos tiene que estar entre 0 y 1800."
+  }
+}
+
 variable "alerta_email" {
   description = "Email que recibe las alarmas. Vacio = sin suscripcion."
   type        = string

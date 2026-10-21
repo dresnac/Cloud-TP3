@@ -10,12 +10,12 @@ export function parseFecha(texto) {
 
 export function hora(texto) {
   const d = parseFecha(texto);
-  return d ? d.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }) : "";
+  return d ? d.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hourCycle: "h23" }) : "";
 }
 
 export function fechaHora(texto) {
   const d = parseFecha(texto);
-  return d ? d.toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" }) : "";
+  return d ? d.toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short", hourCycle: "h23" }) : "";
 }
 
 const pesos = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });

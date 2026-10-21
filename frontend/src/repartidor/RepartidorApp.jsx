@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { api, ApiError, subirAS3 } from "../api";
 import { useSesion } from "../components/AppShell";
 import { Cargando, ErrorAviso, Estado, Leyenda, Mapa } from "../components/comunes";
+import { Camara } from "../components/iconos";
 import { config } from "../config";
 import { aJpeg, distancia, fechaHora, parseFecha, precio, usePolling, useTick } from "../util";
 
@@ -42,12 +43,12 @@ function TarjetaEstado({ estado, ocupado, onCambiar }) {
         <Estado estado={visible} />
       </div>
       {ocupado ? (
-        <p className="muted chico">Tenés un pedido en curso. Al entregarlo volvés a quedar disponible.</p>
+        <p className="muted chico">Tenés un pedido en curso. Cuando lo entregues volvés a quedar disponible.</p>
       ) : (
         <div className="segmentado">
           {["DISPONIBLE", "DESCONECTADO"].map((e) => (
             <button key={e} className={estado === e ? "activo" : ""} disabled={enviando} onClick={() => cambiar(e)}>
-              {e === "DISPONIBLE" ? "🟢 Disponible" : "⚪ Desconectado"}
+              <i className={`punto ${e === "DISPONIBLE" ? "punto-ok" : ""}`} /> {e === "DISPONIBLE" ? "Disponible" : "Desconectado"}
             </button>
           ))}
         </div>
@@ -73,19 +74,19 @@ function TarjetaPosicion({ modo, setModo, posicion, ultimoEnvio, errorEnvio, emi
       <div className="encabezado">
         <h3>Tu posición</h3>
         <span className="muted chico">
-          {!emitiendo ? "sin enviar (desconectado)" : ultimoEnvio ? `enviada ${Math.round((Date.now() - ultimoEnvio) / 1000)}s atrás` : "enviando…"}
+          {!emitiendo ? "No se envía mientras estés desconectado" : ultimoEnvio ? `Enviada hace ${Math.round((Date.now() - ultimoEnvio) / 1000)} s` : "Enviando…"}
         </span>
       </div>
       <div className="segmentado">
         <button className={modo === "simulada" ? "activo" : ""} onClick={() => setModo("simulada")}>
-          🧭 Simular recorrido
+          Simular recorrido
         </button>
         <button className={modo === "gps" ? "activo" : ""} disabled={!gpsDisponible} onClick={() => setModo("gps")}>
-          📡 GPS real
+          GPS del celular
         </button>
       </div>
       {!gpsDisponible && (
-        <p className="muted chico">El GPS del navegador solo funciona con HTTPS o en localhost; acá se usa la simulación.</p>
+        <p className="muted chico">El GPS del navegador solo funciona con HTTPS o en localhost. Mientras tanto se usa la simulación.</p>
       )}
       {modo === "simulada" && !pedido && zonas.length > 0 && (
         <label className="chico">
@@ -126,7 +127,7 @@ function Oferta({ oferta, onResponder }) {
     try {
       await onResponder(oferta, acepta);
     } catch (e) {
-      setError(e instanceof ApiError && e.status === 409 ? new Error("La oferta ya venció o fue respondida.") : e);
+      setError(e instanceof ApiError && e.status === 409 ? new Error("Esta oferta ya venció o ya fue respondida.") : e);
       setEnviando(false);
     }
   }
@@ -134,14 +135,26 @@ function Oferta({ oferta, onResponder }) {
   return (
     <div className="tarjeta oferta">
       <div className="encabezado">
-        <h3>Nuevo pedido · {precio(oferta.total)}</h3>
-        {restan != null && <span className={`cuenta ${restan < 20 ? "urgente" : ""}`}>{restan}s</span>}
+        <span className="eyebrow">Nueva oferta</span>
+        {restan != null && <span className={`cuenta ${restan < 20 ? "urgente" : ""}`}>{restan} s</span>}
       </div>
-      <p>
-        <b>Retiro:</b> {oferta.comercio} — {oferta.direccion_comercio}
-        <br />
-        <b>Entrega:</b> {oferta.direccion_entrega}
-      </p>
+      {restan != null && (
+        <div className="tiempo" aria-hidden="true">
+          <span style={{ width: `${(100 * restan) / config.ofertaTimeoutSegundos}%` }} />
+        </div>
+      )}
+      <p className="monto fuerte grande">{precio(oferta.total)}</p>
+      <ol className="paradas">
+        <li className="parada-retiro">
+          <span className="muted chico bloque">Retirás en</span>
+          <strong>{oferta.comercio}</strong>
+          <span className="muted chico bloque">{oferta.direccion_comercio}</span>
+        </li>
+        <li className="parada-entrega">
+          <span className="muted chico bloque">Entregás en</span>
+          <strong>{oferta.direccion_entrega}</strong>
+        </li>
+      </ol>
       <ErrorAviso error={error} />
       <div className="fila-botones">
         <button className="btn" disabled={enviando || restan === 0} onClick={() => responder(false)}>
@@ -179,11 +192,16 @@ function PedidoEnCurso({ pedido, fase, confirmando, onEntregar }) {
         <h3>Pedido en curso</h3>
         <Estado estado={pedido.estado} />
       </div>
-      <p>
-        <b>{fase === "retiro" ? "➡️ Retirá en:" : "✅ Retirado en:"}</b> {pedido.comercio}
-        <br />
-        <b>{fase === "entrega" ? "➡️ Entregá en:" : "Entrega en:"}</b> {pedido.direccion_entrega}
-      </p>
+      <ol className="paradas">
+        <li className={`parada-retiro ${fase === "retiro" ? "activa" : "hecha"}`}>
+          <span className="muted chico bloque">{fase === "retiro" ? "Ahora: retirá en" : "Retirado en"}</span>
+          <strong>{pedido.comercio}</strong>
+        </li>
+        <li className={`parada-entrega ${fase === "entrega" ? "activa" : ""}`}>
+          <span className="muted chico bloque">{fase === "entrega" ? "Ahora: entregá en" : "Después: entregá en"}</span>
+          <strong>{pedido.direccion_entrega}</strong>
+        </li>
+      </ol>
       {pedido.items.map((i) => (
         <div key={i.producto_id} className="fila-detalle chico">
           <span>
@@ -192,12 +210,12 @@ function PedidoEnCurso({ pedido, fase, confirmando, onEntregar }) {
         </div>
       ))}
       {confirmando ? (
-        <Cargando texto="Confirmando la entrega (Step Functions verifica la foto en S3)…" />
+        <Cargando texto="Confirmando la entrega: se verifica la foto…" />
       ) : (
         <>
           <input ref={inputRef} type="file" accept="image/*" capture="environment" hidden onChange={elegirFoto} />
           <button className="btn primario ancho" disabled={paso === "subiendo"} onClick={() => inputRef.current?.click()}>
-            {paso === "subiendo" ? "Subiendo foto…" : "📷 Sacar foto y confirmar entrega"}
+            {paso === "subiendo" ? "Subiendo la foto…" : <><Camara tam={18} /> Sacar foto y confirmar la entrega</>}
           </button>
           {paso instanceof Error && <ErrorAviso error={paso} />}
         </>
@@ -387,8 +405,7 @@ export default function RepartidorApp() {
           <div className="tarjeta centrado">
             <Cargando texto="Esperando ofertas…" />
             <p className="muted chico">
-              Para recibir ofertas tenés que estar disponible y haber enviado tu posición en los últimos 5 minutos, a menos
-              de 5 km del comercio.
+              Te llegan los pedidos de comercios a menos de 5 km mientras estés disponible y tu posición se esté enviando.
             </p>
           </div>
         )}
@@ -413,7 +430,7 @@ export default function RepartidorApp() {
         />
         {historial.length > 0 && (
           <div className="tarjeta">
-            <h3>Últimas entregas</h3>
+            <h3>Tus últimas entregas</h3>
             {historial.map((p) => (
               <div key={p.id} className="fila-detalle chico">
                 <span>{p.comercio}</span>

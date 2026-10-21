@@ -1,5 +1,5 @@
 // Genera frontend/.env.local con los outputs de Terraform (URL de la API, User Pool, App Clients
-// y timeout de las ofertas).
+// timeout de las ofertas y espera de repartidor).
 // Uso: npm run config   (después del terraform apply)
 import { execFileSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
@@ -33,6 +33,7 @@ const env = {
   VITE_CLIENT_ID_CLIENTE: clientes.cliente,
   VITE_CLIENT_ID_REPARTIDOR: clientes.repartidor,
   VITE_OFERTA_TIMEOUT_SEGUNDOS: valor("asignacion_timeout_segundos"),
+  VITE_ESPERA_REPARTIDOR_SEGUNDOS: valor("asignacion_espera_segundos"),
 };
 
 writeFileSync(destino, Object.entries(env).map(([k, v]) => `${k}=${v}`).join("\n") + "\n");

@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { login, logout, sesionGuardada } from "../auth";
 import { Cargando } from "./comunes";
+import { Atras, Bolsa, Moto, Salir } from "./iconos";
 
 const SesionContext = createContext(null);
 export const useSesion = () => useContext(SesionContext);
@@ -27,9 +28,12 @@ function Login({ app, titulo, onIngreso }) {
 
   return (
     <main className={`login tema-${app}`}>
-      <form className="tarjeta login-form" onSubmit={enviar}>
-        <span className="emoji grande">{app === "cliente" ? "🛍️" : "🛵"}</span>
-        <h1>{titulo}</h1>
+      <form className="login-form" onSubmit={enviar}>
+        <Link to="/" className="volver">
+          <Atras tam={16} /> Elegir otra app
+        </Link>
+        <span className="login-icono">{app === "cliente" ? <Bolsa tam={28} /> : <Moto tam={28} />}</span>
+        <h1>{app === "cliente" ? "Ingresá para pedir" : "Ingresá para repartir"}</h1>
         <label>
           Email
           <input type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required />
@@ -44,16 +48,17 @@ function Login({ app, titulo, onIngreso }) {
             required
           />
         </label>
-        {error && <p className="error">{error}</p>}
-        <button className="btn primario" disabled={enviando}>
+        {error && (
+          <p className="aviso error" role="alert">
+            {error}
+          </p>
+        )}
+        <button className="btn primario ancho" disabled={enviando}>
           {enviando ? "Ingresando…" : "Ingresar"}
         </button>
-        <p className="muted chico">
+        <p className="nota">
           Las contraseñas de los usuarios de demo salen de <code>terraform output -json usuarios_demo</code>.
         </p>
-        <Link to="/" className="muted chico">
-          ← Volver
-        </Link>
       </form>
     </main>
   );
@@ -87,13 +92,13 @@ export default function AppShell({ app, titulo, grupo, children }) {
     setSesion(null);
   };
 
-  if (sesion === undefined) return <Cargando />;
+  if (sesion === undefined) return <Cargando texto="Recuperando la sesión…" />;
   if (!sesion) return <Login app={app} titulo={titulo} onIngreso={setSesion} />;
 
   if (!sesion.grupos.includes(grupo)) {
     return (
-      <main className="login">
-        <div className="tarjeta login-form">
+      <main className={`login tema-${app}`}>
+        <div className="login-form">
           <h1>Sin permiso</h1>
           <p>
             <b>{sesion.email}</b> no está en el grupo <code>{grupo}</code> de Cognito.
@@ -101,7 +106,7 @@ export default function AppShell({ app, titulo, grupo, children }) {
           <p className="muted chico">
             Agregarlo con <code>aws cognito-idp admin-add-user-to-group --group-name {grupo}</code>.
           </p>
-          <button className="btn" onClick={cerrar}>
+          <button className="btn ancho" onClick={cerrar}>
             Usar otro usuario
           </button>
         </div>
@@ -114,12 +119,14 @@ export default function AppShell({ app, titulo, grupo, children }) {
       <div className={`shell tema-${app}`}>
         <header className="barra">
           <Link to={`/${app}`} className="barra-titulo">
-            {app === "cliente" ? "🛍️" : "🛵"} {titulo}
+            <span className="barra-marca">{app === "cliente" ? <Bolsa tam={18} /> : <Moto tam={18} />}</span>
+            {titulo}
           </Link>
           <div className="barra-usuario">
-            <span className="muted chico ocultar-movil">{sesion.email}</span>
-            <button className="btn chico" onClick={cerrar}>
-              Salir
+            <span className="ocultar-movil">{sesion.email}</span>
+            <button className="btn-texto" onClick={cerrar} aria-label="Salir">
+              <Salir tam={18} />
+              <span className="ocultar-movil">Salir</span>
             </button>
           </div>
         </header>

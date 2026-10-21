@@ -43,9 +43,17 @@
       },
       "ResultSelector": { "repartidor_id.$": "$.Payload.repartidor_id" },
       "ResultPath": "$.candidato",
-      "Retry": ${retry_lambda},
+      "Retry": [
+        {
+          "ErrorEquals": ["SinCandidatos"],
+          "IntervalSeconds": ${espera_intervalo},
+          "MaxAttempts": ${espera_intentos},
+          "BackoffRate": 1
+        },
+        ${reintento_lambda}
+      ],
       "Catch": [
-        { "ErrorEquals": ["SinRepartidores"], "ResultPath": "$.error", "Next": "Cancelar" }
+        { "ErrorEquals": ["SinCandidatos", "OfertasAgotadas"], "ResultPath": "$.error", "Next": "Cancelar" }
       ],
       "Next": "OfrecerPedido"
     },

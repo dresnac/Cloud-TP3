@@ -6,7 +6,14 @@ MAX_INTENTOS = int(os.environ["MAX_INTENTOS"])
 RADIO_METROS = int(os.environ["RADIO_METROS"])
 
 
-class SinRepartidores(Exception):
+# Se agotaron las ofertas: el workflow cancela el pedido.
+class OfertasAgotadas(Exception):
+    pass
+
+
+# No hay nadie cerca en este momento: el workflow reintenta durante
+# asignacion_espera_segundos antes de cancelar.
+class SinCandidatos(Exception):
     pass
 
 
@@ -17,7 +24,7 @@ def handler(event, context):
         "SELECT count(*) AS n FROM asignacion WHERE pedido_id = :id", id=pedido_id
     )[0]["n"]
     if intentos >= MAX_INTENTOS:
-        raise SinRepartidores(f"{intentos} ofertas sin aceptar")
+        raise OfertasAgotadas(f"{intentos} ofertas sin aceptar")
 
     candidatos = db.consultar(
         "SELECT r.id AS repartidor_id,"
@@ -39,6 +46,6 @@ def handler(event, context):
         radio=RADIO_METROS,
     )
     if not candidatos:
-        raise SinRepartidores("no hay repartidores disponibles cerca")
+        raise SinCandidatos("no hay repartidores disponibles cerca")
     return candidatos[0]
     

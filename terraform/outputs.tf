@@ -40,6 +40,11 @@ output "asignacion_timeout_segundos" {
   value       = var.asignacion_timeout_segundos
 }
 
+output "asignacion_espera_segundos" {
+  description = "Segundos que se busca repartidor antes de cancelar (el frontend lo muestra mientras espera)."
+  value       = var.asignacion_espera_segundos
+}
+
 output "usuarios_demo" {
   description = "Credenciales de los usuarios de prueba (terraform output -json usuarios_demo)."
   sensitive   = true

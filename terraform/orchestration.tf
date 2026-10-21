@@ -11,6 +11,11 @@ locals {
     BackoffRate     = 2
   }
   retry_lambda = jsonencode([local.reintento_lambda])
+
+  # Sin repartidores cerca, BuscarRepartidor se reintenta cada 15 s hasta
+  # completar asignacion_espera_segundos; recien ahi se cancela el pedido.
+  espera_intervalo = 15
+  espera_intentos  = ceil(var.asignacion_espera_segundos / local.espera_intervalo)
 }
 
 resource "aws_sfn_state_machine" "procesar_pedido" {
@@ -25,6 +30,9 @@ resource "aws_sfn_state_machine" "procesar_pedido" {
     cerrar_asignacion_arn = module.cerrar_asignacion.arn
     timeout_oferta        = var.asignacion_timeout_segundos
     retry_lambda          = local.retry_lambda
+    reintento_lambda      = jsonencode(local.reintento_lambda)
+    espera_intervalo      = local.espera_intervalo
+    espera_intentos       = local.espera_intentos
     topic_estado_arn      = aws_sns_topic.estado_pedido.arn
   })
 }
