@@ -1,5 +1,6 @@
 terraform {
-  required_version = ">= 1.6"
+  # 1.10: bloqueo nativo de S3 (use_lockfile) del estado remoto del workflow.
+  required_version = ">= 1.10"
 
   required_providers {
     aws = {

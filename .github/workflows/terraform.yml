@@ -50,8 +50,11 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
+      # GitHub no pasa secrets a los PR que vienen de un fork (como el PR de
+      # entrega a la catedra). Sin credenciales no hay plan posible, pero fmt y
+      # validate ya corrieron: el job queda en verde con un aviso, no en rojo.
       - name: Plan sin credenciales
         if: env.AWS_ACCESS_KEY_ID == ''
         run: |
-          echo "::error::Faltan los secrets AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY y AWS_SESSION_TOKEN: no se puede correr terraform plan."
-          exit 1
+          echo "::notice::Sin secrets de AWS (PR desde un fork o Lab sin cargar): se omite terraform plan. fmt y validate pasaron."
+          echo '## terraform plan omitido: el PR no tiene acceso a los secrets de AWS.' >> "$GITHUB_STEP_SUMMARY"

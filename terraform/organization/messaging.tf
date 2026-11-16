@@ -25,6 +25,10 @@ resource "aws_lambda_event_source_mapping" "pedidos" {
   function_response_types = ["ReportBatchItemFailures"]
 }
 
+# Cifrado con la clave administrada aws/sns y no con una CMK: solo publican
+# Step Functions y LabRole, que la clave administrada ya autoriza. Una CMK
+# agregaria una key policy propia que mantener sin cambiar quien puede leer.
+#tfsec:ignore:aws-sns-topic-encryption-use-cmk
 resource "aws_sns_topic" "estado_pedido" {
   name              = "${var.proyecto}-estado-pedido"
   kms_master_key_id = "alias/aws/sns"

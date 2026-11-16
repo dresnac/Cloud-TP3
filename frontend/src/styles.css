@@ -865,11 +865,11 @@ label {
   background: var(--verde-fondo);
   color: var(--verde);
 }
-.estado-cancelado {
+.estado-cancelado,
+.estado-rechazado {
   background: var(--rojo-fondo);
   color: var(--rojo);
 }
-
 .aviso {
   display: flex;
   align-items: center;

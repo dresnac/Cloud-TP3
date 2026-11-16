@@ -6,8 +6,11 @@ jobs:
   docs:
     runs-on: ubuntu-latest
     steps:
+    # En un PR desde un fork, la rama no existe en este repositorio: hay que
+    # hacer checkout desde el repo de origen del PR.
     - uses: actions/checkout@v3
       with:
+        repository: ${{ github.event.pull_request.head.repo.full_name }}
         ref: ${{ github.event.pull_request.head.ref }}
 
     - name: Render terraform docs and push changes back to PR
@@ -17,4 +20,5 @@ jobs:
         find-dir: terraform/modules
         output-file: README.md
         output-method: inject
-        git-push: "true"
+        # Solo se puede empujar el README generado a ramas de este mismo repo.
+        git-push: ${{ github.event.pull_request.head.repo.full_name == github.repository }}

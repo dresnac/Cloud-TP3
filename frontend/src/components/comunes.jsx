@@ -9,6 +9,7 @@ const ETIQUETAS = {
   ASIGNADO: "En camino",
   ENTREGADO: "Entregado",
   CANCELADO: "Cancelado",
+  RECHAZADO: "Rechazado",
   DISPONIBLE: "Disponible",
   OCUPADO: "Con pedido",
   DESCONECTADO: "Desconectado",
@@ -40,11 +41,12 @@ export function Cargando({ texto = "Cargando…" }) {
   );
 }
 
-// Recorrido de un pedido. Un pedido cancelado corta la línea en el paso donde se canceló.
+// Recorrido de un pedido. Un pedido cancelado o rechazado corta la línea en el
+// paso "Buscando repartidor": ninguno de los dos llegó a tener repartidor.
 const PASOS = ["RECIBIDO", "CREADO", "ASIGNADO", "ENTREGADO"];
 
 export function Pasos({ estado }) {
-  const cancelado = estado === "CANCELADO";
+  const cancelado = estado === "CANCELADO" || estado === "RECHAZADO";
   const actual = cancelado ? PASOS.indexOf("CREADO") : Math.max(0, PASOS.indexOf(estado));
   return (
     <ol className={`pasos ${cancelado ? "cortados" : ""}`}>
@@ -58,7 +60,7 @@ export function Pasos({ estado }) {
               {hecho && <Check tam={14} />}
               {enCurso && cancelado && <Cruz tam={14} />}
             </span>
-            <span className="paso-texto">{enCurso && cancelado ? "Cancelado" : ETIQUETAS[p]}</span>
+            <span className="paso-texto">{enCurso && cancelado ? ETIQUETAS[estado] : ETIQUETAS[p]}</span>
           </li>
         );
       })}
