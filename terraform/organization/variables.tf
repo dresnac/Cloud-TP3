@@ -76,6 +76,17 @@ variable "historico_lifecycle" {
   }
 }
 
+variable "db_dias_backup" {
+  description = "Dias de retencion de los backups automaticos de RDS. Define hasta cuando se puede restaurar a un punto en el tiempo."
+  type        = number
+  default     = 7
+
+  validation {
+    condition     = var.db_dias_backup >= 1 && var.db_dias_backup <= 35
+    error_message = "RDS admite entre 1 y 35 dias de retencion."
+  }
+}
+
 variable "endpoint_una_az" {
   type    = bool
   default = true

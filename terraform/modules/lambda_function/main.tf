@@ -5,6 +5,8 @@ data "archive_file" "zip" {
   excludes    = ["**/__pycache__/**"]
 }
 
+# Cifrado por defecto de CloudWatch Logs (ver justificacion en api.tf).
+#tfsec:ignore:aws-cloudwatch-log-group-customer-key
 resource "aws_cloudwatch_log_group" "this" {
   name              = "/aws/lambda/${var.nombre}"
   retention_in_days = 7
@@ -21,6 +23,12 @@ resource "time_sleep" "logs" {
   depends_on = [aws_cloudwatch_log_group.this]
 }
 
+# Sin X-Ray: el trazado activo necesita xray:PutTraceSegments en el rol de
+# ejecucion. En el Learner Lab el rol es LabRole, que no se puede modificar, y
+# no esta confirmado que incluya ese permiso.
+# El seguimiento de un pedido se hace con las ejecuciones de Step Functions y
+# los logs de CloudWatch.
+#tfsec:ignore:aws-lambda-enable-tracing
 resource "aws_lambda_function" "this" {
   function_name    = var.nombre
   role             = var.role_arn

@@ -1,0 +1,116 @@
+# Despliegue del TP desde GitHub Actions: Actions -> deploy -> Run workflow.
+#
+# Usa los secrets AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY y AWS_SESSION_TOKEN
+# del Learner Lab (vencen con la sesion: actualizarlos antes de correrlo).
+# El estado vive en un bucket S3 privado de la misma cuenta, asi que plan,
+# apply y destroy sucesivos administran siempre el mismo despliegue.
+name: deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      accion:
+        description: Operacion sobre el despliegue del TP en us-east-1
+        required: true
+        default: plan
+        type: choice
+        options:
+          - plan
+          - apply
+          - destroy
+
+permissions:
+  contents: read
+
+# Dos ejecuciones a la vez sobre el mismo estado se pisarian. Se encolan, y un
+# apply en curso nunca se cancela (dejaria recursos a medio crear).
+concurrency:
+  group: terraform-delivery-us-east-1
+  cancel-in-progress: false
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+      AWS_REGION: us-east-1
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_PAGER: ""
+      TF_IN_AUTOMATION: "true"
+      ACCION: ${{ inputs.accion }}
+
+    defaults:
+      run:
+        working-directory: terraform/organization
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.16.4
+          terraform_wrapper: false
+
+      - name: Inicializar estado remoto privado
+        id: backend
+        run: bash "$GITHUB_WORKSPACE/.github/scripts/terraform-backend.sh"
+
+      - name: Validate
+        run: terraform validate -no-color
+
+      - name: Plan
+        run: |
+          args=(-input=false -no-color -lock-timeout=5m -out=tfplan)
+          if [[ "$ACCION" == destroy ]]; then
+            args+=(-destroy)
+          fi
+          terraform plan "${args[@]}"
+
+      - name: Aplicar el plan guardado
+        if: inputs.accion == 'apply' || inputs.accion == 'destroy'
+        run: terraform apply -input=false -no-color -lock-timeout=5m tfplan
+
+      - name: Comprobar API, autenticacion y catalogo
+        if: inputs.accion == 'apply'
+        run: bash "$GITHUB_WORKSPACE/.github/scripts/terraform-smoke.sh"
+
+      - name: Generar configuracion del frontend
+        if: inputs.accion == 'apply'
+        run: node "$GITHUB_WORKSPACE/frontend/scripts/config-desde-terraform.mjs"
+
+      # Solo la configuracion publica (URL del API, User Pool, App Clients).
+      # Nunca se publican el estado ni los planes: contienen credenciales.
+      - name: Guardar configuracion publica del frontend
+        if: inputs.accion == 'apply'
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-config
+          path: frontend/.env.local
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Resumen
+        if: success()
+        env:
+          STATE_BUCKET: ${{ steps.backend.outputs.bucket }}
+        run: |
+          {
+            echo '## deploy'
+            echo "Operacion: $ACCION. Region: $AWS_REGION."
+            echo "Estado privado: s3://$STATE_BUCKET/delivery/terraform.tfstate"
+            if [[ "$ACCION" == apply ]]; then
+              echo "API: $(terraform output -raw api_url)"
+              echo "User Pool: $(terraform output -raw cognito_user_pool_id)"
+              echo 'La configuracion del frontend esta en el artefacto frontend-config.'
+            elif [[ "$ACCION" == destroy ]]; then
+              echo 'Se eliminaron los recursos del TP. Se conserva el bucket del estado.'
+            else
+              echo 'Solo se genero el plan; no se aplicaron cambios al TP.'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -132,16 +132,36 @@ La Lambda devuelve los nombres y ARNs. [`recursos-base.tf`](terraform/organizati
 
 ## 5. Guía de ejecución
 
+Hay dos formas de desplegar. **No mezclarlas sobre la misma cuenta**: cada una guarda su propio estado de Terraform, y un apply local no ve lo que creó el workflow (ni al revés).
+
 ### Requisitos
 
-- Terraform **>= 1.6** (el CI usa 1.16.4)
-- Una sesión activa de **AWS Academy Learner Lab**: el código usa el rol `LabRole` y la región `us-east-1`
-- Acceso a internet: se descarga el bundle de CA de RDS durante el plan
-- Opcional: AWS CLI y Python 3 para el script de verificación; Node.js para el frontend
+- Una sesión activa de **AWS Academy Learner Lab**: el código usa el rol `LabRole` y la región `us-east-1`.
+- Para la opción B: Terraform **>= 1.10** (el CI usa 1.16.4), AWS CLI y, para el frontend, Node.js.
 
-### Pasos
+### Opción A: desde GitHub Actions (recomendada)
 
-1. **Credenciales.** En el Learner Lab, *Start Lab* → *AWS Details* → *AWS CLI*. Copiar el bloque en `~/.aws/credentials` o exportar las variables:
+1. **Secrets.** En el Learner Lab, *Start Lab* → *AWS Details* → *AWS CLI*. Cargar los tres valores en *Settings → Secrets and variables → Actions* del repositorio:
+   `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` y `AWS_SESSION_TOKEN`. Vencen con la sesión del Lab: actualizarlos antes de cada ejecución.
+2. **Desplegar.** *Actions* → **deploy** → *Run workflow* → `apply`. Tarda unos 15 minutos (RDS es lo más lento).
+   El workflow prepara el estado remoto, aplica el plan y corre una prueba de humo: rechazo sin token (401), login de Cognito con el usuario demo y catálogo de comercios y productos leído desde RDS.
+3. **Resultado.** El resumen de la ejecución muestra la URL del API y el User Pool. El artefacto **`frontend-config`** trae el `.env.local` del frontend (solo configuración pública).
+4. **Frontend.** Copiar `.env.local` a `frontend/` y:
+
+   ```bash
+   cd frontend
+   npm ci
+   npm run dev      # http://localhost:5173
+   ```
+
+   Usuarios demo: `cliente.demo@example.com` y `repartidor.demo@example.com`. Sus contraseñas no se imprimen en los logs; para leerlas, ver [Contraseñas demo](#contraseñas-demo).
+5. **Destruir.** *Run workflow* → `destroy`. Se borran todos los recursos del TP y se conserva el bucket del estado.
+
+`plan` muestra los cambios sin aplicar nada.
+
+### Opción B: desde una terminal
+
+1. **Credenciales.** Copiar el bloque de *AWS Details → AWS CLI* en `~/.aws/credentials`, o exportar las variables:
 
    ```bash
    export AWS_ACCESS_KEY_ID=...
@@ -150,28 +170,22 @@ La Lambda devuelve los nombres y ARNs. [`recursos-base.tf`](terraform/organizati
    export AWS_REGION=us-east-1
    ```
 
-2. **Variables (opcional).** Todas tienen default. Para cambiar alguna:
+2. **Variables (opcional).** Todas tienen default:
 
    ```bash
    cp terraform/organization/terraform.tfvars.example terraform/organization/terraform.tfvars
    ```
 
-3. **Init, validate y plan.**
+3. **Init, plan y apply.** Al final del apply, Terraform invoca `migrar-esquema`, que crea el esquema y carga los datos de prueba.
 
    ```bash
    cd terraform/organization
    terraform init
-   terraform validate
    terraform plan -out=tfplan
-   ```
-
-4. **Apply.** Tarda varios minutos (RDS es lo más lento). Al final, Terraform invoca `migrar-esquema`, que crea el esquema y carga los datos de prueba.
-
-   ```bash
    terraform apply tfplan
    ```
 
-5. **Outputs.**
+4. **Outputs.**
 
    ```bash
    terraform output                       # URL del API, User Pool, App Clients, bucket, stream...
@@ -179,47 +193,76 @@ La Lambda devuelve los nombres y ARNs. [`recursos-base.tf`](terraform/organizati
    terraform output -json usuarios_demo   # credenciales de los usuarios de prueba
    ```
 
-6. **Verificar el despliegue (opcional).** Desde la raíz del repo, con las mismas credenciales:
-
-   ```bash
-   ./scripts/verificar-apply.sh
-   ```
-
-7. **Frontend (opcional).**
+5. **Frontend.**
 
    ```bash
    cd frontend
-   npm install
+   npm ci
    npm run config   # genera .env.local con los outputs de Terraform
-   npm run dev      # http://localhost:5173
+   npm run dev
    ```
 
-8. **Destruir.**
+6. **Verificar (opcional).** Desde la raíz del repo, con las mismas credenciales: `./scripts/verificar-apply.sh`.
 
-   ```bash
-   cd terraform/organization
-   terraform destroy
-   ```
+7. **Destruir.** `terraform destroy` desde `terraform/organization`. `recursos-base` vacía y borra el bucket y el stream como parte del destroy.
 
-   `recursos-base` vacía y borra el bucket y el stream como parte del destroy.
+### Contraseñas demo
+
+Se generan con `random_password` y quedan solo en el estado. Para leerlas de un despliegue hecho con el workflow, desde una terminal con las credenciales del mismo Lab:
+
+```bash
+cd terraform/organization
+cat > override.tf <<'HCL'
+terraform {
+  backend "s3" {}
+}
+HCL
+cuenta=$(aws sts get-caller-identity --query Account --output text)
+terraform init -input=false \
+  -backend-config="bucket=itba-cloud-2026q2-g1-tfstate-${cuenta}-us-east-1" \
+  -backend-config='key=delivery/terraform.tfstate' \
+  -backend-config='region=us-east-1' \
+  -backend-config='encrypt=true' \
+  -backend-config='use_lockfile=true'
+terraform output -json usuarios_demo
+```
+
+`override.tf` está en `.gitignore`. No copiar las contraseñas en issues, PR ni logs.
 
 ---
 
-## 6. Pipeline de GitHub Actions
+## 6. Pipelines de GitHub Actions
 
-[`.github/workflows/terraform.yml`](.github/workflows/terraform.yml) corre en cada pull request y en cada push a `main`:
+| Workflow | Cuándo corre | Qué hace |
+|---|---|---|
+| [`terraform.yml`](.github/workflows/terraform.yml) | Cada PR y cada push a `main` | `fmt`, `init -backend=false`, `validate` y, si hay secrets, `plan` contra un estado vacío. En un PR desde un fork GitHub no entrega secrets: el plan se omite con un aviso y el job queda en verde. |
+| [`deploy.yml`](.github/workflows/deploy.yml) | Manual (*Run workflow*) | `plan`, `apply` o `destroy` con estado remoto, prueba de humo y artefacto del frontend. Ver [Opción A](#opción-a-desde-github-actions-recomendada). |
+| [`tfsec.yaml`](.github/workflows/tfsec.yaml) | Cada PR | Análisis de seguridad del código Terraform. Ver [Decisiones de seguridad](#decisiones-de-seguridad). |
+| [`terraform-docs.yml`](.github/workflows/terraform-docs.yml) | Cada PR | Documentación de los módulos. En un PR desde un fork genera sin empujar cambios. |
+| [`terraform-format.yml`](.github/workflows/terraform-format.yml) | Cada PR | `terraform fmt -check` con comentario en el PR. |
 
-| Paso | Comando |
-|---|---|
-| Formato | `terraform fmt -check -recursive` |
-| Init | `terraform init -backend=false` |
-| Validate | `terraform validate` |
-| Plan | `terraform plan`; el resultado queda en el resumen de la ejecución |
+### Estado remoto del despliegue
 
-El `plan` consulta AWS (el rol `LabRole` y las AZ disponibles), así que necesita credenciales del Learner Lab cargadas como secrets del repositorio (*Settings → Secrets and variables → Actions*):
+[`.github/scripts/terraform-backend.sh`](.github/scripts/terraform-backend.sh) prepara, antes de cada ejecución de `deploy`:
 
-- `AWS_ACCESS_KEY_ID`
-- `AWS_SECRET_ACCESS_KEY`
-- `AWS_SESSION_TOKEN`
+- **Bucket de estado** `itba-cloud-2026q2-g1-tfstate-<cuenta>-us-east-1`: privado (bloqueo de acceso público), cifrado (SSE-S3) y versionado, así que una versión dañada del estado se puede recuperar. Se crea con la AWS CLI y no con Terraform: es el lugar donde Terraform guarda su propio estado, y además el Learner Lab niega la llamada que el provider hace sobre todo bucket (ver [sección 4](#4-lambda-recursos-base)).
+- **Bloqueo nativo de S3** (`use_lockfile`): dos ejecuciones nunca escriben el estado a la vez. Además, el workflow encola las ejecuciones y nunca cancela un apply en curso.
+- **Protección contra duplicados:** si la cuenta ya tiene recursos `delivery` pero el estado remoto está vacío (por ejemplo, de un apply local), el workflow se detiene en vez de crear un segundo despliegue.
 
-Las credenciales del Lab vencen al terminar la sesión. Antes de abrir o actualizar un PR hay que iniciar el Lab y actualizar los tres secrets. Sirven las del Lab de cualquier integrante: el `plan` solo lee de AWS y no crea recursos. El `apply` no corre en el pipeline: se hace localmente, con las credenciales propias, siguiendo la guía de ejecución. Si faltan, el pipeline falla con un mensaje que lo indica. Como no hay backend remoto, el plan se hace contra un state vacío y muestra todo lo que crearía un apply desde cero.
+El estado y los planes nunca se publican como artefactos: contienen las contraseñas generadas.
+
+### Decisiones de seguridad
+
+tfsec no reporta hallazgos abiertos. Cada regla que se acepta está marcada con `#tfsec:ignore:<regla>` en el recurso, junto con su justificación; no se desactiva el análisis.
+
+| Regla | Recurso | Por qué se acepta |
+|---|---|---|
+| `aws-sns-enable-topic-encryption` | `alertas` | CloudWatch Alarms no puede publicar en un topic cifrado con la clave administrada `aws/sns`. Cifrarlo exigiría una CMK propia con key policy a medida. El topic solo transporta nombres y estados de alarmas. |
+| `aws-sns-topic-encryption-use-cmk` | `estado_pedido` | Está cifrado con la clave administrada. Solo publican Step Functions y LabRole, que esa clave ya autoriza; una CMK no cambiaría quién puede leer. |
+| `aws-rds-enable-deletion-protection` | RDS | El `destroy` del workflow tiene que poder borrar la base sin pasos manuales. En producción iría activado. |
+| `aws-rds-enable-iam-auth` | RDS | Las Lambdas usan usuario y clave de Secrets Manager por el endpoint privado de la VPC; la autenticación IAM requiere permisos `rds-db:connect` que LabRole no permite configurar. |
+| `aws-rds-enable-performance-insights` | RDS | No disponible para `db.t3.micro`. |
+| `aws-ssm-secret-use-customer-key`, `aws-cloudwatch-log-group-customer-key` | Secreto de RDS, log groups | Cifrado con claves administradas. Una CMK no agrega control de acceso cuando todo corre con LabRole. |
+| `aws-lambda-enable-tracing` | Módulo `lambda_function` | X-Ray necesita `xray:PutTraceSegments` en el rol de ejecución, y LabRole no se puede modificar. El seguimiento se hace con las ejecuciones de Step Functions y CloudWatch Logs. |
+
+La retención de backups de RDS, que tfsec marcaba en 1 día, pasó a ser la variable `db_dias_backup` (7 días por defecto).

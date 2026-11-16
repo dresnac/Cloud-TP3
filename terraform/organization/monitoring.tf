@@ -1,3 +1,9 @@
+# Sin cifrado a proposito: CloudWatch Alarms no puede publicar en un topic
+# cifrado con la clave administrada aws/sns (su key policy no autoriza al
+# servicio cloudwatch.amazonaws.com). Cifrarlo exigiria una CMK propia con una
+# key policy a medida. El topic solo transporta el nombre y estado de alarmas,
+# sin datos de usuarios.
+#tfsec:ignore:aws-sns-enable-topic-encryption
 resource "aws_sns_topic" "alertas" {
   name = "${var.proyecto}-alertas"
 }

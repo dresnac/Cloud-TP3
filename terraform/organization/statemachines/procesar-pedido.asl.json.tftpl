@@ -53,7 +53,8 @@
         ${reintento_lambda}
       ],
       "Catch": [
-        { "ErrorEquals": ["SinCandidatos", "OfertasAgotadas"], "ResultPath": "$.error", "Next": "Cancelar" }
+        { "ErrorEquals": ["SinCandidatos", "OfertasAgotadas"], "ResultPath": "$.error", "Next": "Cancelar" },
+        { "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "Cancelar" }
       ],
       "Next": "OfrecerPedido"
     },
@@ -74,7 +75,8 @@
       "Catch": [
         { "ErrorEquals": ["RepartidorOcupado"], "ResultPath": "$.error", "Next": "BuscarRepartidor" },
         { "ErrorEquals": ["Rechazado"], "ResultPath": "$.error", "Next": "Rechazada" },
-        { "ErrorEquals": ["States.Timeout"], "ResultPath": "$.error", "Next": "Vencida" }
+        { "ErrorEquals": ["States.Timeout"], "ResultPath": "$.error", "Next": "Vencida" },
+        { "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "Cancelar" }
       ],
       "Next": "Aceptada"
     },
@@ -93,7 +95,18 @@
       "ResultSelector": { "estado.$": "$.Payload.estado" },
       "ResultPath": "$.cierre",
       "Retry": ${retry_lambda},
-      "Next": "NotificarAsignado"
+      "Catch": [
+        { "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "Rechazada" }
+      ],
+      "Next": "AsignacionCerrada"
+    },
+    "AsignacionCerrada": {
+      "Type": "Choice",
+      "Choices": [
+        { "Variable": "$.cierre.estado", "StringEquals": "ASIGNADO", "Next": "NotificarAsignado" },
+        { "Variable": "$.cierre.estado", "StringEquals": "NO_ASIGNABLE", "Next": "BuscarRepartidor" }
+      ],
+      "Default": "Fin"
     },
     "NotificarAsignado": {
       "Type": "Task",
