@@ -8,6 +8,10 @@ import pg8000.native
 
 CA_BUNDLE = "/opt/rds-ca/global-bundle.pem"
 
+# Errores que indican que la conexion cacheada ya no sirve. El primero que
+# aparece tras un corte es ConnectionResetError (un OSError), no InterfaceError.
+CONEXION_ROTA = (pg8000.native.InterfaceError, OSError)
+
 _conn = None
 
 
@@ -31,13 +35,23 @@ def conexion():
         )
     return _conn
 
-def consultar(sql, **params):
+
+def _descartar():
     global _conn
+    if _conn is not None:
+        try:
+            _conn.close()
+        except Exception:
+            pass
+    _conn = None
+
+
+def consultar(sql, **params):
     conn = conexion()
     try:
         filas = conn.run(sql, **params)
-    except pg8000.native.InterfaceError:
-        _conn = None
+    except CONEXION_ROTA:
+        _descartar()
         raise
     # INSERT/UPDATE sin RETURNING no devuelven columnas (conn.columns es None).
     if conn.columns is None:
@@ -45,13 +59,25 @@ def consultar(sql, **params):
     columnas = [c["name"] for c in conn.columns]
     return [dict(zip(columnas, fila)) for fila in filas]
 
+
 @contextmanager
 def transaccion():
-    conn = conexion()
-    conn.run("START TRANSACTION")
+    # Si la conexion cacheada murio (reinicio o failover de RDS, contenedor
+    # congelado mucho tiempo), se reintenta una vez con una nueva: todavia no
+    # se ejecuto nada, asi que es seguro.
+    try:
+        conn = conexion()
+        conn.run("START TRANSACTION")
+    except CONEXION_ROTA:
+        _descartar()
+        conn = conexion()
+        conn.run("START TRANSACTION")
     try:
         yield
         conn.run("COMMIT")
     except Exception:
-        conn.run("ROLLBACK")
+        try:
+            conn.run("ROLLBACK")
+        except CONEXION_ROTA:
+            _descartar()
         raise

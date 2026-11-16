@@ -76,6 +76,58 @@ variable "historico_lifecycle" {
   }
 }
 
+variable "db_dias_backup" {
+  description = "Dias de retencion de los backups automaticos de RDS. Define hasta cuando se puede restaurar a un punto en el tiempo."
+  type        = number
+  default     = 7
+
+  validation {
+    condition     = var.db_dias_backup >= 1 && var.db_dias_backup <= 35
+    error_message = "RDS admite entre 1 y 35 dias de retencion."
+  }
+}
+
+variable "db_multi_az" {
+  description = "RDS con standby sincronico en otra AZ y failover automatico. Duplica el costo de la instancia."
+  type        = bool
+  default     = false
+}
+
+variable "backup_rds" {
+  description = "Plan de AWS Backup para RDS: si se crea, cuando corre (cron en UTC) y cuantos dias se guarda cada copia."
+  type = object({
+    habilitado     = bool
+    cron           = string
+    dias_retencion = number
+  })
+  default = {
+    habilitado     = true
+    cron           = "cron(0 6 * * ? *)" # 03:00 en Buenos Aires
+    dias_retencion = 7
+  }
+
+  validation {
+    condition     = var.backup_rds.dias_retencion >= 1
+    error_message = "La retencion tiene que ser de al menos 1 dia."
+  }
+
+  validation {
+    condition     = startswith(var.backup_rds.cron, "cron(")
+    error_message = "El cron tiene que tener el formato de AWS: cron(min hora dia mes dia-semana anio)."
+  }
+}
+
+variable "presupuesto_mensual_usd" {
+  description = "Presupuesto mensual de la cuenta en USD, con alertas al topic de alertas al 80 % pronosticado y al 100 % real. 0 lo desactiva."
+  type        = number
+  default     = 50
+
+  validation {
+    condition     = var.presupuesto_mensual_usd >= 0
+    error_message = "El presupuesto no puede ser negativo."
+  }
+}
+
 variable "endpoint_una_az" {
   type    = bool
   default = true

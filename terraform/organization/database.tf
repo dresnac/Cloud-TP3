@@ -13,6 +13,15 @@ resource "random_password" "db" {
   special = false
 }
 
+# deletion_protection en false: el destroy del workflow tiene que poder borrar
+# la base sin pasos manuales (requisito de la catedra: el TP se levanta y se
+# baja desde el pipeline). En produccion iria en true.
+# Autenticacion IAM de RDS no se usa: las Lambdas toman usuario y clave de
+# Secrets Manager por el endpoint privado de la VPC, y el token IAM exigiria
+# permisos rds-db:connect que LabRole no permite configurar.
+# Performance Insights no esta disponible para db.t3.micro.
+#tfsec:ignore:aws-rds-enable-iam-auth
+#tfsec:ignore:aws-rds-enable-performance-insights
 resource "aws_db_instance" "main" {
   identifier     = var.proyecto
   engine         = "postgres"
@@ -30,12 +39,16 @@ resource "aws_db_instance" "main" {
   db_subnet_group_name   = module.vpc.database_subnet_group_name
   vpc_security_group_ids = [aws_security_group.rds.id]
   publicly_accessible    = false
-  multi_az               = false
+  # Multi-AZ es un hot standby administrado: replica sincronica en otra AZ y
+  # failover automatico del endpoint. Durante el failover se cortan las
+  # conexiones abiertas; db.py las descarta y reconecta.
+  multi_az = var.db_multi_az
 
-  backup_retention_period = 1
+  backup_retention_period = var.db_dias_backup
   skip_final_snapshot     = true
-  deletion_protection     = false
-  apply_immediately       = true
+  #tfsec:ignore:aws-rds-enable-deletion-protection
+  deletion_protection = false
+  apply_immediately   = true
 
   lifecycle {
     precondition {
@@ -45,6 +58,9 @@ resource "aws_db_instance" "main" {
   }
 }
 
+# Clave administrada aws/secretsmanager: el secreto solo lo leen las Lambdas
+# con LabRole. Una CMK no cambiaria quien puede leerlo en el Lab.
+#tfsec:ignore:aws-ssm-secret-use-customer-key
 resource "aws_secretsmanager_secret" "db" {
   name_prefix             = "${var.proyecto}-db-"
   recovery_window_in_days = 0

@@ -95,3 +95,13 @@ CREATE TABLE IF NOT EXISTS calificacion (
 ALTER TABLE pedido ADD COLUMN IF NOT EXISTS comprobante text;
 
 CREATE INDEX IF NOT EXISTS pedido_repartidor_idx ON pedido (repartidor_id);
+
+-- Un repartidor no puede tener dos pedidos ASIGNADO a la vez.
+CREATE UNIQUE INDEX IF NOT EXISTS pedido_un_asignado
+    ON pedido (repartidor_id) WHERE estado = 'ASIGNADO';
+
+-- El estado RECHAZADO pasa a ser valido. El CREATE TABLE es IF NOT
+-- EXISTS, asi que en una base ya migrada hay que recrear el CHECK.
+ALTER TABLE pedido DROP CONSTRAINT IF EXISTS pedido_estado_check;
+ALTER TABLE pedido ADD CONSTRAINT pedido_estado_check
+    CHECK (estado IN ('CREADO', 'ASIGNADO', 'ENTREGADO', 'CANCELADO', 'RECHAZADO'));
