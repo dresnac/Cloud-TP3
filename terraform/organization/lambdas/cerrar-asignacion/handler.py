@@ -1,6 +1,8 @@
 import db
+import pg8000.native
 
 RESULTADOS = {"ACEPTADA", "RECHAZADA", "VENCIDA", "CANCELADO"}
+VIOLACION_UNIQUE = "23505"
 
 
 def handler(event, context):
@@ -9,37 +11,46 @@ def handler(event, context):
     if resultado not in RESULTADOS:
         raise ValueError(f"resultado invalido: {resultado}")
 
-    with db.transaccion():
-        if resultado == "CANCELADO":
-            # Si quedo una oferta abierta, se cierra: si no, el indice
-            # asignacion_una_pendiente deja a ese repartidor sin poder recibir
-            # ninguna oferta mas.
+    if resultado == "CANCELADO":
+        with db.transaccion():
             db.consultar(
                 "UPDATE asignacion SET estado = 'VENCIDA', respondido_en = now()"
                 " WHERE pedido_id = :pedido AND estado = 'PENDIENTE'",
                 pedido=pedido_id,
             )
             _cambiar_estado(pedido_id, "CANCELADO")
-            return {"estado": "CANCELADO"}
+        return {"estado": "CANCELADO"}
 
-        repartidor_id = event["repartidor_id"]
-        if resultado == "ACEPTADA" and event.get("respondio") != repartidor_id:
-            raise ValueError("acepto un repartidor distinto al ofrecido")
-        db.consultar(
-            "UPDATE asignacion SET estado = :resultado, respondido_en = now()"
-            " WHERE pedido_id = :pedido AND repartidor_id = :repartidor"
-            " AND estado = 'PENDIENTE'",
-            resultado=resultado,
-            pedido=pedido_id,
-            repartidor=repartidor_id,
-        )
+    repartidor_id = event["repartidor_id"]
+    if resultado == "ACEPTADA" and event.get("respondio") != repartidor_id:
+        raise ValueError("acepto un repartidor distinto al ofrecido")
 
-        if resultado == "ACEPTADA":
-            # Repartidor y estado en la misma sentencia: si el pedido ya no
-            # esta CREADO (por ejemplo, se cancelo), no se le asigna a nadie.
-            if _cambiar_estado(pedido_id, "ASIGNADO", repartidor_id):
-                return {"estado": "ASIGNADO", "repartidor_id": repartidor_id}
-            return {"estado": "NO_ASIGNABLE"}
+    try:
+        with db.transaccion():
+            db.consultar(
+                "UPDATE asignacion SET estado = :resultado, respondido_en = now()"
+                " WHERE pedido_id = :pedido AND repartidor_id = :repartidor"
+                " AND estado = 'PENDIENTE'",
+                resultado=resultado,
+                pedido=pedido_id,
+                repartidor=repartidor_id,
+            )
+            if resultado == "ACEPTADA":
+                if _cambiar_estado(pedido_id, "ASIGNADO", repartidor_id):
+                    return {"estado": "ASIGNADO", "repartidor_id": repartidor_id}
+                return {"estado": "NO_ASIGNABLE"}
+    except pg8000.native.DatabaseError as e:
+        if not (e.args and e.args[0].get("C") == VIOLACION_UNIQUE):
+            raise
+        with db.transaccion():
+            db.consultar(
+                "UPDATE asignacion SET estado = 'RECHAZADA', respondido_en = now()"
+                " WHERE pedido_id = :pedido AND repartidor_id = :repartidor"
+                " AND estado = 'PENDIENTE'",
+                pedido=pedido_id,
+                repartidor=repartidor_id,
+            )
+        return {"estado": "NO_ASIGNABLE"}
 
     return {"estado": resultado}
 

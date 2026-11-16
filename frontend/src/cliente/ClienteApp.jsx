@@ -8,7 +8,7 @@ import { config } from "../config";
 import { buscarDireccion, direccionDe } from "../geocodificacion";
 import { fechaHora, hora, parseFecha, precio, usePolling, useTick } from "../util";
 
-const FINALES = ["ENTREGADO", "CANCELADO"];
+const FINALES = ["ENTREGADO", "CANCELADO", "RECHAZADO"];
 
 function Volver({ to, children }) {
   return (
@@ -436,6 +436,9 @@ function Seguimiento() {
       {pedido.estado === "CREADO" && <Buscando desde={parseFecha(pedido.creado_en)} />}
       {pedido.estado === "CANCELADO" && (
         <div className="aviso error">No conseguimos un repartidor para este pedido y lo cancelamos.</div>
+      )}
+      {pedido.estado === "RECHAZADO" && (
+        <div className="aviso error">El comercio no pudo tomar este pedido: algún producto ya no está disponible.</div>
       )}
 
       <Mapa puntos={puntos} />
