@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import { MapContainer, Marker, Polyline, TileLayer, Tooltip, useMap, useMapEvents } from "react-leaflet";
 import { Check, Cruz } from "./iconos";
@@ -9,6 +9,7 @@ const ETIQUETAS = {
   ASIGNADO: "En camino",
   ENTREGADO: "Entregado",
   CANCELADO: "Cancelado",
+  RECHAZADO: "Rechazado",
   DISPONIBLE: "Disponible",
   OCUPADO: "Con pedido",
   DESCONECTADO: "Desconectado",
@@ -40,11 +41,12 @@ export function Cargando({ texto = "Cargando…" }) {
   );
 }
 
-// Recorrido de un pedido. Un pedido cancelado corta la línea en el paso donde se canceló.
+// Recorrido de un pedido. Un pedido cancelado o rechazado corta la línea en el
+// paso "Buscando repartidor": ninguno de los dos llegó a tener repartidor.
 const PASOS = ["RECIBIDO", "CREADO", "ASIGNADO", "ENTREGADO"];
 
 export function Pasos({ estado }) {
-  const cancelado = estado === "CANCELADO";
+  const cancelado = estado === "CANCELADO" || estado === "RECHAZADO";
   const actual = cancelado ? PASOS.indexOf("CREADO") : Math.max(0, PASOS.indexOf(estado));
   return (
     <ol className={`pasos ${cancelado ? "cortados" : ""}`}>
@@ -58,7 +60,7 @@ export function Pasos({ estado }) {
               {hecho && <Check tam={14} />}
               {enCurso && cancelado && <Cruz tam={14} />}
             </span>
-            <span className="paso-texto">{enCurso && cancelado ? "Cancelado" : ETIQUETAS[p]}</span>
+            <span className="paso-texto">{enCurso && cancelado ? ETIQUETAS[estado] : ETIQUETAS[p]}</span>
           </li>
         );
       })}
@@ -82,15 +84,36 @@ function icono(tipo) {
   return ICONOS[tipo];
 }
 
-function Encuadre({ puntos }) {
+// Puntos que se mueven solos: el mapa los sigue mientras el usuario no lo toque.
+const MOVILES = new Set(["repartidor", "yo"]);
+
+// Encuadre automático en modo "seguir": re-encuadra cuando aparece o desaparece
+// un tipo de punto y cuando el repartidor se sale de la vista. En cuanto el
+// usuario arrastra o hace zoom, el mapa queda libre y no se mueve más solo,
+// hasta que toca "Centrar" (o aparece un punto nuevo).
+function Encuadre({ puntos, libre, setLibre, centrar }) {
   const map = useMap();
-  const clave = puntos.map((p) => `${p.lat.toFixed(4)},${p.lng.toFixed(4)}`).join("|");
-  useEffect(() => {
+  const propio = useRef(false); // el movimiento en curso lo hizo el código, no el usuario
+  const tipos = puntos.map((p) => p.tipo).join("|");
+  const encuadrar = () => {
+    propio.current = true;
+    setTimeout(() => (propio.current = false), 700);
     if (puntos.length === 1) map.setView([puntos[0].lat, puntos[0].lng], 15);
     else if (puntos.length > 1) map.fitBounds(puntos.map((p) => [p.lat, p.lng]), { padding: [48, 48], maxZoom: 16 });
-    // Solo re-encuadra cuando cambia el conjunto de puntos (redondeado).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clave, map]);
+  };
+  useMapEvents({
+    dragstart: () => setLibre(true),
+    zoomstart: () => propio.current || setLibre(true),
+  });
+  useEffect(() => {
+    setLibre(false);
+    encuadrar();
+  }, [tipos, centrar, map]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (libre) return;
+    const vista = map.getBounds().pad(-0.08);
+    if (puntos.some((p) => MOVILES.has(p.tipo) && !vista.contains([p.lat, p.lng]))) encuadrar();
+  });
   return null;
 }
 
@@ -117,25 +140,43 @@ function Punto({ punto, onArrastrar }) {
   );
 }
 
+const ESTILO_TRAZO = {
+  hecho: { color: "#2457c5", weight: 4, opacity: 0.85 },
+  pendiente: { color: "#3d4452", weight: 4, opacity: 0.75, dashArray: "1 8", lineCap: "round" },
+};
+
 // puntos: [{ lat, lng, tipo: "comercio" | "destino" | "repartidor" | "yo", etiqueta }]
+// trazos: [{ puntos: [{ lat, lng }], tipo: "hecho" | "pendiente" }]
 // onClick y onArrastrar (solo el destino) permiten elegir un punto en el mapa.
-export function Mapa({ puntos, ruta, onClick, onArrastrar, alto = 260 }) {
+export function Mapa({ puntos, ruta, trazos = [], onClick, onArrastrar, alto = 260 }) {
   const validos = puntos.filter((p) => p && Number.isFinite(p.lat) && Number.isFinite(p.lng));
   const centro = validos[0] || { lat: -34.6037, lng: -58.3816 };
+  const [libre, setLibre] = useState(false);
+  const [centrar, setCentrar] = useState(0);
   return (
     <div className={`mapa ${onClick ? "elegible" : ""}`} style={{ height: alto }}>
       <MapContainer center={[centro.lat, centro.lng]} zoom={14} scrollWheelZoom={false} style={{ height: "100%" }}>
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · rutas <a href="https://project-osrm.org">OSRM</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
+        {trazos
+          .filter((t) => t.puntos.length > 1)
+          .map((t, i) => (
+            <Polyline key={`${t.tipo}-${i}`} positions={t.puntos.map((p) => [p.lat, p.lng])} pathOptions={ESTILO_TRAZO[t.tipo]} />
+          ))}
         {ruta && <Polyline positions={ruta.map((p) => [p.lat, p.lng])} pathOptions={{ color: "#6a7080", dashArray: "6 6" }} />}
         {validos.map((p, i) => (
           <Punto key={`${p.tipo}-${i}`} punto={p} onArrastrar={onArrastrar} />
         ))}
-        <Encuadre puntos={validos} />
+        <Encuadre puntos={validos} libre={libre} setLibre={setLibre} centrar={centrar} />
         <Clicks onClick={onClick} />
       </MapContainer>
+      {libre && validos.length > 0 && (
+        <button type="button" className="btn chico mapa-centrar" onClick={() => setCentrar((n) => n + 1)}>
+          Centrar
+        </button>
+      )}
     </div>
   );
 }

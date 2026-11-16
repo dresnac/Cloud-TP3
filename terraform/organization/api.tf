@@ -24,6 +24,9 @@ resource "aws_apigatewayv2_authorizer" "cognito" {
   }
 }
 
+# Los log groups usan el cifrado por defecto de CloudWatch Logs. Una CMK por
+# log group no agrega control de acceso en el Lab (todo corre con LabRole).
+#tfsec:ignore:aws-cloudwatch-log-group-customer-key
 resource "aws_cloudwatch_log_group" "api" {
   name              = "/aws/apigateway/${var.proyecto}"
   retention_in_days = 7

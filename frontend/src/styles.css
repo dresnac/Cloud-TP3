@@ -865,11 +865,11 @@ label {
   background: var(--verde-fondo);
   color: var(--verde);
 }
-.estado-cancelado {
+.estado-cancelado,
+.estado-rechazado {
   background: var(--rojo-fondo);
   color: var(--rojo);
 }
-
 .aviso {
   display: flex;
   align-items: center;
@@ -1245,5 +1245,48 @@ label {
   *::after {
     animation: none !important;
     transition: none !important;
+  }
+}
+
+/* ------------------------------------------------------------ viaje en curso */
+.viaje {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.3rem 1rem;
+  margin: 0 0 0.6rem;
+  padding: 0.6rem 0.8rem;
+  border-left: 3px solid #2457c5;
+  border-radius: 6px;
+  background: color-mix(in srgb, #2457c5 8%, transparent);
+  font-size: 0.92rem;
+}
+
+/* ------------------------------------------------------------ mapa: centrar y líneas */
+.mapa-centrar {
+  position: absolute;
+  right: 10px;
+  bottom: 26px;
+  z-index: 1000;
+  box-shadow: var(--sombra);
+}
+.leyenda i.marca-linea-hecho,
+.leyenda i.marca-linea-pendiente {
+  width: 18px;
+  height: 0;
+  border-radius: 0;
+  vertical-align: 3px;
+  background: none;
+}
+.marca-linea-hecho {
+  border-top: 3px solid #2457c5;
+}
+.marca-linea-pendiente {
+  border-top: 3px dotted #3d4452;
+}
+@media (prefers-color-scheme: dark) {
+  .marca-linea-pendiente {
+    border-top-color: #aab1bd;
   }
 }

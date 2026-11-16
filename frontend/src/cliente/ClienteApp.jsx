@@ -6,9 +6,10 @@ import { Cargando, ErrorAviso, Estado, Leyenda, Mapa, Pasos } from "../component
 import { Atras, Buscar, Chevron, Local, Mira, Pin, Recibo } from "../components/iconos";
 import { config } from "../config";
 import { buscarDireccion, direccionDe } from "../geocodificacion";
-import { fechaHora, hora, parseFecha, precio, usePolling, useTick } from "../util";
+import { largo, restoDeRuta, rutaPorCalles } from "../ruteo";
+import { distancia, fechaHora, hora, parseFecha, precio, textoDistancia, textoMinutos, usePolling, useTick } from "../util";
 
-const FINALES = ["ENTREGADO", "CANCELADO"];
+const FINALES = ["ENTREGADO", "CANCELADO", "RECHAZADO"];
 
 function Volver({ to, children }) {
   return (
@@ -303,7 +304,7 @@ function Pedidos() {
             <span className="crece">
               <strong>{p.comercio}</strong>
               <span className="muted chico bloque">
-                {fechaHora(p.creado_en)} · <span className="monto">{precio(p.total)}</span>
+                {fechaHora(p.creado_en)} · {p.estado === "RECHAZADO" ? "sin cargo" : <span className="monto">{precio(p.total)}</span>}
               </span>
             </span>
             <Estado estado={p.estado} />
@@ -315,6 +316,88 @@ function Pedidos() {
 }
 
 // ---------------------------------------------------------------- seguimiento
+const VELOCIDAD_DEFECTO = 25 / 3.6; // m/s, por si todavía no hay posiciones para medirla
+const RADIO_RETIRO_M = 60;
+
+// Recorrido del repartidor visto desde esta pantalla: guarda cada posición nueva
+// que llega por el polling (y la conserva en sessionStorage si se recarga).
+// La API solo devuelve la última posición; el historial completo se archiva en S3.
+function useRecorrido(id, pedido) {
+  const clave = `recorrido-${id}`;
+  const [recorrido, setRecorrido] = useState(() => {
+    try {
+      return JSON.parse(sessionStorage.getItem(clave)) || [];
+    } catch {
+      return [];
+    }
+  });
+  const marca = pedido?.repartidor_actualizado_en;
+  useEffect(() => {
+    if (!marca || pedido.repartidor_lat == null) return;
+    const t = parseFecha(marca)?.getTime();
+    setRecorrido((r) => {
+      if (r.length && r[r.length - 1].t === t) return r;
+      const nuevo = [...r, { lat: pedido.repartidor_lat, lng: pedido.repartidor_lng, t }].slice(-500);
+      try {
+        sessionStorage.setItem(clave, JSON.stringify(nuevo));
+      } catch {
+        /* sin almacenamiento: el recorrido vive solo en memoria */
+      }
+      return nuevo;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [marca]);
+  return recorrido;
+}
+
+const DESVIO_MAX_M = 150; // si el repartidor se aparta más de la ruta, se pide una nueva
+
+// Lo que le falta al repartidor: si todavía no pasó por el comercio, primero va
+// a retirar. La ruta va por calles (OSRM); mientras llega, o si el servicio no
+// responde, se usa la línea recta.
+function useViaje(pedido, recorrido) {
+  const enCamino = pedido?.estado === "ASIGNADO" && pedido.repartidor_lat != null;
+  const rep = enCamino ? { lat: pedido.repartidor_lat, lng: pedido.repartidor_lng } : null;
+  const comercio = enCamino ? { lat: pedido.comercio_lat, lng: pedido.comercio_lng } : null;
+  const destino = enCamino ? { lat: pedido.entrega_lat, lng: pedido.entrega_lng } : null;
+  const retirado =
+    enCamino && (recorrido.some((p) => distancia(p, comercio) < RADIO_RETIRO_M) || distancia(rep, comercio) < RADIO_RETIRO_M);
+  const paradas = enCamino ? (retirado ? [rep, destino] : [rep, comercio, destino]) : null;
+
+  const [recalculos, setRecalculos] = useState(0);
+  const clave = enCamino ? `${pedido.id}:${retirado}:${recalculos}` : null;
+  const [ruta, setRuta] = useState(null);
+  useEffect(() => {
+    if (!clave) return undefined;
+    let vigente = true;
+    rutaPorCalles(paradas).then((puntos) => vigente && setRuta(puntos ? { clave, puntos } : null));
+    return () => {
+      vigente = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clave]);
+
+  const resto = enCamino && ruta?.clave === clave ? restoDeRuta(ruta.puntos, rep) : null;
+  const desviado = resto != null && resto.desvio > DESVIO_MAX_M;
+  useEffect(() => {
+    if (desviado) setRecalculos((n) => n + 1);
+  }, [desviado]);
+  if (!enCamino) return null;
+
+  const pendiente = resto && !desviado ? resto.puntos : paradas;
+  const metros = largo(pendiente);
+
+  // Velocidad medida con las posiciones del último minuto.
+  const ultimo = recorrido[recorrido.length - 1];
+  const tramo = ultimo ? recorrido.filter((p) => ultimo.t - p.t <= 60000) : [];
+  let velocidad = VELOCIDAD_DEFECTO;
+  if (tramo.length > 1) {
+    const s = (tramo[tramo.length - 1].t - tramo[0].t) / 1000;
+    if (s > 0 && largo(tramo) / s > 1) velocidad = largo(tramo) / s;
+  }
+  return { retirado, pendiente, metros, segundos: metros / velocidad, porCalles: Boolean(resto && !desviado) };
+}
+
 function Calificar({ pedidoId }) {
   const { app } = useSesion();
   const [puntaje, setPuntaje] = useState(0);
@@ -398,6 +481,8 @@ function Seguimiento() {
     [id]
   );
 
+  const recorrido = useRecorrido(id, pedido);
+  const v = useViaje(pedido, recorrido);
   const puntos = useMemo(() => {
     if (!pedido) return [];
     const p = [
@@ -422,6 +507,10 @@ function Seguimiento() {
       </section>
     );
 
+  const rechazado = pedido.estado === "RECHAZADO";
+  const trazos = [{ puntos: recorrido, tipo: "hecho" }];
+  if (v) trazos.push({ puntos: v.pendiente, tipo: "pendiente" });
+
   const posHace = pedido.repartidor_actualizado_en
     ? Math.round((Date.now() - parseFecha(pedido.repartidor_actualizado_en)) / 1000)
     : null;
@@ -437,18 +526,37 @@ function Seguimiento() {
       {pedido.estado === "CANCELADO" && (
         <div className="aviso error">No conseguimos un repartidor para este pedido y lo cancelamos.</div>
       )}
+      {pedido.estado === "RECHAZADO" && (
+        <div className="aviso error">El comercio no pudo tomar este pedido: algún producto ya no está disponible.</div>
+      )}
 
-      <Mapa puntos={puntos} />
-      <div className="fila-botones">
-        <Leyenda
-          items={[
-            { tipo: "comercio", texto: "Comercio" },
-            { tipo: "destino", texto: "Entrega" },
-            { tipo: "repartidor", texto: "Repartidor" },
-          ]}
-        />
-        {posHace != null && <span className="muted chico">Posición de hace {posHace} s</span>}
-      </div>
+      {v && (
+        <div className="viaje">
+          <strong>{v.retirado ? "En camino a tu dirección" : "Yendo a retirar tu pedido"}</strong>
+          <span>
+            a <span className="monto">{textoDistancia(v.metros)}</span> · llega en ~
+            <span className="monto">{textoMinutos(v.segundos)}</span>
+          </span>
+        </div>
+      )}
+
+      {!rechazado && (
+        <>
+          <Mapa puntos={puntos} trazos={trazos} />
+          <div className="fila-botones">
+            <Leyenda
+              items={[
+                { tipo: "comercio", texto: "Comercio" },
+                { tipo: "destino", texto: "Entrega" },
+                { tipo: "repartidor", texto: "Repartidor" },
+                ...(recorrido.length > 1 ? [{ tipo: "linea-hecho", texto: "Recorrido" }] : []),
+                ...(v ? [{ tipo: "linea-pendiente", texto: "Por recorrer" }] : []),
+              ]}
+            />
+            {posHace != null && <span className="muted chico">Posición de hace {posHace} s</span>}
+          </div>
+        </>
+      )}
 
       {pedido.estado === "ENTREGADO" && <Calificar pedidoId={pedido.id} />}
 
@@ -467,7 +575,7 @@ function Seguimiento() {
         ))}
         <div className="comanda-fila total">
           <span>Total</span>
-          <span className="monto">{precio(pedido.total)}</span>
+          {rechazado ? <span>Sin cargo</span> : <span className="monto">{precio(pedido.total)}</span>}
         </div>
         <div className="comanda-pie">
           <Pin tam={15} /> {pedido.direccion_entrega}

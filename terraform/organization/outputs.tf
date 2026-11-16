@@ -50,3 +50,8 @@ output "usuarios_demo" {
   sensitive   = true
   value       = { for email, clave in random_password.usuario_demo : email => clave.result }
 }
+
+output "dashboard_url" {
+  description = "Dashboard de CloudWatch con la operacion del sistema."
+  value       = "https://${var.region}.console.aws.amazon.com/cloudwatch/home?region=${var.region}#dashboards/dashboard/${aws_cloudwatch_dashboard.operacion.dashboard_name}"
+}

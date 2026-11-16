@@ -5,6 +5,7 @@ import { Cargando, ErrorAviso, Estado, Leyenda, Mapa } from "../components/comun
 import { Camara } from "../components/iconos";
 import { config } from "../config";
 import { aJpeg, distancia, fechaHora, parseFecha, precio, usePolling, useTick } from "../util";
+import { avanzar, rutaPorCalles } from "../ruteo";
 
 const SIM_TICK_MS = 5000; // cada cuánto se mueve y se envía la posición simulada
 const SIM_PASO_M = 90; // metros por tick (~65 km/h: rápido a propósito para la demo)
@@ -59,7 +60,7 @@ function TarjetaEstado({ estado, ocupado, onCambiar }) {
 }
 
 // ---------------------------------------------------------------- posición
-function TarjetaPosicion({ modo, setModo, posicion, ultimoEnvio, errorEnvio, emitiendo, zonas, zona, setZona, pedido }) {
+function TarjetaPosicion({ modo, setModo, posicion, ultimoEnvio, errorEnvio, emitiendo, zonas, zona, setZona, pedido, rutaRestante }) {
   const gpsDisponible = window.isSecureContext && "geolocation" in navigator;
   const puntos = [{ ...posicion, tipo: "yo", etiqueta: "Vos" }];
   if (pedido) {
@@ -100,12 +101,17 @@ function TarjetaPosicion({ modo, setModo, posicion, ultimoEnvio, errorEnvio, emi
           </select>
         </label>
       )}
-      {posicion ? <Mapa puntos={puntos} alto={220} /> : <Cargando texto="Obteniendo posición…" />}
+      {posicion ? (
+        <Mapa puntos={puntos} trazos={rutaRestante ? [{ puntos: rutaRestante, tipo: "pendiente" }] : []} alto={220} />
+      ) : (
+        <Cargando texto="Obteniendo posición…" />
+      )}
       <Leyenda
         items={[
           { tipo: "yo", texto: "Vos" },
           { tipo: "comercio", texto: pedido ? "Retiro" : "Comercio" },
           ...(pedido ? [{ tipo: "destino", texto: "Entrega" }] : []),
+          ...(rutaRestante ? [{ tipo: "linea-pendiente", texto: "Por recorrer" }] : []),
         ]}
       />
       <ErrorAviso error={errorEnvio} />
@@ -238,6 +244,9 @@ export default function RepartidorApp() {
   const [confirmando, setConfirmando] = useState(() => new Map()); // pedido_id -> inicio de la confirmación
   const [aviso, setAviso] = useState(null);
   const fases = useRef({}); // pedido_id -> "retiro" | "entrega" (solo para la simulación)
+  // "pedido_id:fase" -> { puntos, i } con la ruta por calles, "pidiendo" o "recta" si OSRM no respondió
+  const trayectos = useRef({});
+  const [rutaRestante, setRutaRestante] = useState(null);
   useTick(5000);
 
   const comercios = usePolling(() => api(app, "GET", "/comercios"), 0);
@@ -330,22 +339,42 @@ export default function RepartidorApp() {
   const actual = useRef({});
   actual.current = { posicion, pedido, zona, emitiendo };
 
-  // Simulación: arranca a ~1 km del comercio elegido y se acerca; con un pedido va al comercio y después al destino.
+  // Simulación: arranca a ~1 km del comercio elegido y se acerca; con un pedido va al comercio y después al destino,
+  // por calles (ruta de OSRM) o en línea recta si el servicio de rutas no respondió.
   useEffect(() => {
     if (modo !== "simulada") return undefined;
     const tick = () => {
       const { posicion: pos, pedido: p, zona: z, emitiendo: emite } = actual.current;
       if (!z && !p) return;
       let siguiente = pos || { lat: z.lat + 0.008, lng: z.lng + 0.004 };
+      let restante = null;
       if (p) {
-        const comercio = { lat: p.comercio_lat, lng: p.comercio_lng };
-        const destino = { lat: p.entrega_lat, lng: p.entrega_lng };
         const fase = fases.current[p.id] || "retiro";
-        if (fase === "retiro" && distancia(siguiente, comercio) < 30) fases.current[p.id] = "entrega";
-        siguiente = mover(siguiente, fases.current[p.id] === "entrega" ? destino : comercio, SIM_PASO_M);
+        const objetivo = fase === "entrega" ? { lat: p.entrega_lat, lng: p.entrega_lng } : { lat: p.comercio_lat, lng: p.comercio_lng };
+        const clave = `${p.id}:${fase}`;
+        const tr = trayectos.current[clave];
+        let llego = false;
+        if (tr === undefined) {
+          // Se pide la ruta una vez por tramo; mientras llega, el repartidor espera este tick.
+          trayectos.current[clave] = "pidiendo";
+          rutaPorCalles([siguiente, objetivo]).then((puntos) => {
+            trayectos.current[clave] = puntos ? { puntos, i: 1 } : "recta";
+          });
+        } else if (tr === "recta") {
+          siguiente = mover(siguiente, objetivo, SIM_PASO_M);
+          llego = distancia(siguiente, objetivo) < 1;
+        } else if (tr !== "pidiendo") {
+          const a = avanzar(tr.puntos, siguiente, tr.i, SIM_PASO_M);
+          siguiente = a.pos;
+          tr.i = a.i;
+          llego = a.llego;
+          restante = [siguiente, ...tr.puntos.slice(tr.i)];
+        }
+        if (llego && fase === "retiro") fases.current[p.id] = "entrega";
       } else if (distancia(siguiente, z) > 150) {
         siguiente = mover(siguiente, z, SIM_PASO_M);
       }
+      setRutaRestante(restante);
       setPosicion(siguiente);
       if (emite) enviar(siguiente);
     };
@@ -427,6 +456,7 @@ export default function RepartidorApp() {
             setPosicion(null);
           }}
           pedido={pedido}
+          rutaRestante={pedido && modo === "simulada" ? rutaRestante : null}
         />
         {historial.length > 0 && (
           <div className="tarjeta">

@@ -10,6 +10,18 @@ endpoint_una_az = true # endpoint de Secrets Manager en una sola AZ (mas barato)
 
 # Base de datos
 db_instance_class = "db.t3.micro"
+db_multi_az       = false # true: standby en otra AZ (duplica el costo)
+db_dias_backup    = 7     # backups automaticos / restauracion a un punto en el tiempo
+
+# AWS Backup: copia diaria de RDS en una boveda propia
+backup_rds = {
+  habilitado     = true
+  cron           = "cron(0 6 * * ? *)" # UTC
+  dias_retencion = 7
+}
+
+# Presupuesto mensual de la cuenta, con alertas al topic de alertas (0 = sin presupuesto)
+presupuesto_mensual_usd = 50
 cargar_datos_demo = true # comercios y productos de prueba
 
 # Posiciones de la flota

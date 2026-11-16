@@ -31,6 +31,15 @@ export function distancia(a, b) {
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
+export function textoDistancia(m) {
+  return m < 1000 ? `${Math.round(m / 10) * 10} m` : `${(m / 1000).toLocaleString("es-AR", { maximumFractionDigits: 1 })} km`;
+}
+
+export function textoMinutos(seg) {
+  const min = Math.max(1, Math.round(seg / 60));
+  return min === 1 ? "1 min" : `${min} min`;
+}
+
 // Ejecuta `fn` al montar y cada `ms`. Devuelve { datos, error, cargando, recargar }.
 // Con activo = false no consulta.
 export function usePolling(fn, ms, deps = [], activo = true) {
